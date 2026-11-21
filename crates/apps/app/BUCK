@@ -75,6 +75,9 @@ workspace_library(
         "//third-party/rust:wgpu",
         "//third-party/rust:winit",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -117,6 +120,9 @@ workspace_test(
         "//third-party/rust:wgpu",
         "//third-party/rust:winit",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -159,6 +165,9 @@ workspace_binary(
         "//third-party/rust:winit",
         ":app",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -202,6 +211,9 @@ workspace_test(
         "//third-party/rust:winit",
         ":app",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -248,6 +260,9 @@ workspace_test(
         "//third-party/rust:winit",
         ":app",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -294,6 +309,9 @@ workspace_test(
         "//third-party/rust:winit",
         ":app",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -340,6 +358,9 @@ workspace_test(
         "//third-party/rust:winit",
         ":app",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",
@@ -386,6 +407,9 @@ workspace_test(
         "//third-party/rust:winit",
         ":app",
     ] + select({
+        "config//os:linux": [
+            "//third-party/rust:libc",
+        ],
         "config//os:macos": [
             "//crates/apps/app-icon:app-icon",
             "//third-party/rust:objc2",

@@ -22,6 +22,7 @@ An `impl.` name is an implementation switch
 | `H2_LOD_DISTANCE` | Video’s LOD Distance (`graphics.lod_distance`). Choose 0.5, 1 (default), 1.5, 2, 3 or 4 times the resolution-adjusted distance, or `retail` for 640x480 distances at any resolution. |
 | `H2_AIM_ASSIST` | aim-assist strength. Its Controls row appears on iOS and is editable from the main menu ([aim-assist.md](../game/aim-assist.md)) |
 | `H2_PAD_MUTE` | DualSense mute button and LED. Locks the Mute Button row in Voice ([playstation-audio.md](../audio/playstation-audio.md)) |
+| `H2_STEAM_KEYBOARD=0` | on Linux under Steam, keeps Steam's on-screen keyboard closed when the game's virtual keyboard gains focus after controller input ([host-keyboard.md](../input/host-keyboard.md#steams-on-screen-keyboard)) |
 | `H2_LEVEL`, `H2_DIFFICULTY` | boot straight into a level ([level-boot.md](level-boot.md)) |
 | `H2_MAP_DIR`, `H2_MAPPACK*` | editor maps and the map pack ([map-pack.md](../game/map-pack.md)) |
 | `ui-back` | on by default. B or Back returns to Game Setup from its nested selectors. `H2_FEATURES=-ui-back` restores the retail selector Back behavior ([Back navigation](../game/ui-screens.md#back-navigation)) |

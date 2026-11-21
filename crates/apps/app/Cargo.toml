@@ -32,6 +32,10 @@ anyhow.workspace = true
 winit = "0.30"
 png = "0.18"
 
+# The Steam client's command pipe (src/steam_keyboard.rs).
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
 # The Dock icon for the unbundled `h2 play` window (art/app-icon).
 [target.'cfg(target_os = "macos")'.dependencies]
 app-icon = { path = "../app-icon" }

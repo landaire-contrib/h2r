@@ -36,6 +36,8 @@ pub mod tile;
 pub mod scale;
 #[cfg(not(any(target_os = "tvos", target_os = "ios")))]
 mod shell;
+#[cfg(target_os = "linux")]
+mod steam_keyboard;
 mod surface;
 pub mod watermark;
 pub mod worker;

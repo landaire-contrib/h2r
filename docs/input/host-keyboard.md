@@ -1,8 +1,8 @@
 # Host typing in the virtual keyboard
 
-Status: Built. Unit tested on synthetic screen memory; no game run is recorded.
-Code: `crates/extensions/game/src/keyboard_glue.rs`, `crates/apps/app/src/keymap.rs`. Tests: the same files.
-Switch: none.
+Status: Built. On a Steam Machine in Game Mode, X11 typing reached the profile name field, and Steam's keyboard opened after pad input and closed with the screen. Typing on Steam's keyboard itself is not yet confirmed.
+Code: `crates/extensions/game/src/keyboard_glue.rs`, `crates/apps/app/src/keymap.rs`, `crates/apps/app/src/steam_keyboard.rs`. Tests: the same files.
+Switch: `H2_STEAM_KEYBOARD=0` turns off Steam's on-screen keyboard.
 
 When the game's virtual keyboard is focused, host typing edits it directly.
 Printable BMP characters insert, Backspace deletes, Enter runs Done, and Escape
@@ -25,6 +25,14 @@ handle. A guest-thread hook after the normal UI frame update checks focus and
 calls the original game functions. No window callback accesses guest memory.
 A changed field, modal dialog or focus loss discards stale edits. Captured keys
 remain suppressed until release, so holding Enter cannot select the next menu.
+
+## Steam's on-screen keyboard
+
+On Linux under Steam, such as a Steam Deck or Steam Machine in Game Mode, Steam's on-screen keyboard opens when the virtual keyboard screen gains focus and you last used a controller. It closes when the screen loses focus or the game exits. If you last used the keyboard or mouse, nothing opens.
+
+Steam types into the game window as ordinary key presses, so its text takes the same committed-text path as a physical keyboard. Its Enter runs Done and its Backspace deletes. Close it with B to keep using the game's own on-screen keyboard.
+
+The game does not use the Steamworks SDK. It writes `steam://open/keyboard` and `steam://close/keyboard` to the Steam client's command pipe, `~/.steam/steam.pipe`, which the Steam Linux Runtime container shares. The write never waits. It needs `SteamGameId` in the environment, which Steam sets for every game it launches.
 
 ## Retail trace
 
