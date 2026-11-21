@@ -839,7 +839,6 @@ pub struct DrawSnapshot<'a> {
     pub bound_textures: [u32; 4],
     pub sampled_stages: [bool; 4],
     pub palettes: [u32; 4],
-    pub palette_entries: [Option<Vec<u32>>; 4],
     pub color_header: u32,
     pub depth_header: u32,
 }

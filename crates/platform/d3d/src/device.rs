@@ -5579,9 +5579,6 @@ impl<B: Backend> Device<B> {
             let snapshot = crate::DrawSnapshot {
                 draw: &draw, vertex_shader: self.vertex_shader, pixel_shader: self.pixel_shader,
                 bound_textures: self.textures, sampled_stages: sampled, palettes: self.palettes,
-                palette_entries: if owner.is_some() { Default::default() } else {
-                    std::array::from_fn(|i| self.stage_palette(mem, i))
-                },
                 color_header: self.render_target, depth_header: self.depth_stencil,
             };
             if let Some(owner) = owner {

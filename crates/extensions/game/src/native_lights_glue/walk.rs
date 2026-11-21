@@ -130,9 +130,7 @@ impl DrawAdmission for Admission {
             draw.streams = next.streams;
             draw.indices = Some(next.indices);
             draw.vertex_count = next.vertex_count;
-            let sibling = DrawSnapshot {
-                draw: &draw, palette_entries: snapshot.palette_entries.clone(), ..*snapshot
-            };
+            let sibling = DrawSnapshot { draw: &draw, ..*snapshot };
             let (count, pass) = self.range(&sibling)?;
             if pass.writes() != writes || pass.colour_only() != colour_only { return None; }
             ranges = ranges.checked_add(count)?;

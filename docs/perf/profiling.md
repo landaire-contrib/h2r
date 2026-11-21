@@ -172,6 +172,32 @@ thread cannot spawn), `start` fails and leaves nothing recording.
 `Session::start_with(config, targets)` samples other threads too. Make each
 `perf::sample::ThreadTarget::current(name)` on the thread itself.
 
+### Linux and SteamOS: `perf`
+
+The in-process sampler has no Linux implementation, so `capture N sample`
+answers `sampling.unavailable` there. Linux `perf` samples the running game
+instead. SteamOS ships it, and at the default `perf_event_paranoid` of 2 it
+records user-space samples of your own processes without root:
+
+```sh
+P=$(pgrep -x h2)
+G=$(grep -l '^guest$' /proc/$P/task/*/comm | cut -d/ -f5)   # the game thread
+perf record -F 999 -t $G -o /tmp/guest.perf -- sleep 15
+perf report -i /tmp/guest.perf --no-children --sort dso,sym
+```
+
+Generated handlers keep their `h2fn_<entry>` names and Rust symbols resolve
+from `h2`. Neither `h2` nor its Rust code keeps frame pointers on Linux, and
+DWARF unwinding stops at generated code, so `-g` call graphs are not
+usable. To find who calls a hot libc routine (`memmove`, `malloc`), record
+the last user calls with each sample (`-e cycles:u -j any_call,u`, which
+Zen 4 supports) and charge each sample in libc to the first call in its
+branch stack that came from outside libc (`perf script -F ip,brstack`).
+Inside the Steam Linux Runtime container libc is the host's
+`/run/host/usr/lib/libc.so.6`, which `perf` on the host reads as
+`/usr/lib/libc.so.6`; it has no symbol table, so its samples show as bare
+offsets.
+
 ## Timeline
 
 ```

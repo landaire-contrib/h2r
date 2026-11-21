@@ -29,6 +29,7 @@ its commit and method. Re-measure before acting on one.
 | Which subsystem owns each sample of that sim, and what does each rewrite phase save? | [sim-attribution.md](sim-attribution.md) |
 | Where does an in-level frame's time go? | [notes/gameplay-budget.md](notes/gameplay-budget.md) |
 | Where does a main-menu frame's time go? | [notes/menu-budget.md](notes/menu-budget.md) |
+| Where does a frame go on a Steam Machine, and why does the music drop out? | [notes/steammachine-perf.md](notes/steammachine-perf.md) |
 | What does the D3D device cost per draw? | [notes/device-cost.md](notes/device-cost.md) |
 | What structural changes would close the gameplay gap? | [2026-11-16-frame-time.md](../reviews/2026-11-16-frame-time.md): ranked changes (a frozen review; the design pages hold what was done) |
 | What did we try and drop? | [notes/not-adopted.md](notes/not-adopted.md) |

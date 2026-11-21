@@ -829,7 +829,6 @@ mod tests {
                 bound_textures: [0; 4],
                 sampled_stages: [false; 4],
                 palettes: [0; 4],
-                palette_entries: Default::default(),
                 color_header: 1,
                 depth_header: 2,
             }
