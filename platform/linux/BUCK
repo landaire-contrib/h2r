@@ -1,0 +1,66 @@
+load("@toolchains//:host_toolchain.bzl", "host_tool", "steamos_enabled")
+
+# Game data and anything built from it stay on this machine: every rule that
+# reads the disc is local only and never uploaded to a cache.
+
+# [h2] disc in .buckconfig.local: an ISO, XISO or a .7z holding one.
+DISC = read_config("h2", "disc", "")
+
+# H2_OPT for the module: 2 turns on clang's optimisation tiers, which the
+# game needs to hold 30 Hz on a Steam Machine. `h2 play` must run with the
+# same value, so `play` and the SteamOS launcher export it.
+OPT = read_config("h2", "opt", "2")
+
+genrule(
+    name = "disc",
+    out = "halo2.iso",
+    srcs = ["extract-disc.sh"],
+    bash = '"$SRCDIR/extract-disc.sh" "$DISC_SOURCE" "$SEVENZIP"',
+    env = {
+        "DISC_SOURCE": DISC,
+        "SEVENZIP": host_tool("sevenzip", optional = True) or "7z",
+    },
+    cacheable = False,
+    labels = ["uses_local_filesystem_abspaths"],
+    visibility = ["PUBLIC"],
+)
+
+# The clang tier of the game module, built on this machine because the device
+# has no compiler. Objects are reused across builds through H2_OBJ_CACHE.
+genrule(
+    name = "module",
+    out = "module",
+    bash = """
+set -euo pipefail
+export PATH="$MODULE_TOOLCHAIN:$PATH"
+export H2_OBJ_CACHE="${H2_OBJ_CACHE:-$HOME/.cache/h2recomp/obj}"
+if [ -n "$H2_OPT_VALUE" ]; then export H2_OPT="$H2_OPT_VALUE"; fi
+if [ -n "$SYSROOT" ]; then export H2_LINUX_SYSROOT="$SYSROOT"; fi
+$(location //crates/apps/cli:h2) build $(location :disc) --out "$OUT" --tier clang
+""",
+    env = {
+        "H2_OPT_VALUE": OPT,
+        "MODULE_TOOLCHAIN": host_tool("module_toolchain"),
+        "SYSROOT": host_tool("steamos_sysroot") if steamos_enabled() else "",
+    },
+    cacheable = False,
+    labels = ["writes_outside_buck_out"],
+    visibility = ["PUBLIC"],
+)
+
+# `buck2 run //platform/linux:play`: play on this machine with the module
+# built above, which `h2 play` reads without writing to it. Arguments after
+# `--` go to `h2 play`.
+command_alias(
+    name = "play",
+    args = [
+        "play",
+        "$(location :disc)",
+        "--out",
+        "$(location :module)",
+        "--tier",
+        "clang",
+    ],
+    env = {"H2_OPT": OPT} if OPT else {},
+    exe = "//crates/apps/cli:h2",
+)

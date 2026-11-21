@@ -1,0 +1,96 @@
+load("@toolchains//:host_toolchain.bzl", "host_tool", "steamos_enabled")
+
+# Game data and anything built from it stay on this machine: every rule that
+# reads the disc is local only and never uploaded to a cache.
+
+# H2_OPT the module was built with; launch.sh exports it.
+OPT = read_config("h2", "opt", "2")
+
+# `h2`, the module and the launcher, checked against the Steam Runtime 4
+# platform: the expected ELF interpreter, no Nix paths, every library found.
+genrule(
+    name = "package",
+    srcs = ["launch.sh"],
+    out = "package",
+    bash = """
+set -euo pipefail
+if [ -z "$PLATFORM" ]; then
+  echo "Build inside the devenv shell, without -c build_mode.steamos=false." >&2
+  exit 1
+fi
+mkdir -p "$OUT"
+install -m 755 $(location //crates/apps/cli:h2) "$OUT/h2"
+# `h2 play` needs only the module and its stamp.
+mkdir "$OUT/module"
+cp $(location //platform/linux:module)/libh2game.so $(location //platform/linux:module)/libh2game.so.stamp "$OUT/module/"
+install -m 755 "$SRCDIR/launch.sh" "$OUT/launch.sh"
+printf '%s\\n' "$H2_OPT_VALUE" > "$OUT/h2-opt"
+library_path="$PLATFORM/lib/x86_64-linux-gnu:$PLATFORM/usr/lib/x86_64-linux-gnu:$PLATFORM/lib64:$PLATFORM/usr/lib64"
+for binary in "$OUT/h2" "$OUT"/module/libh2game.so; do
+  if "$READELF" --program-headers --dynamic "$binary" | grep -Eq '/nix/store|\\((RPATH|RUNPATH)\\)'; then
+    echo "$binary refers to the Nix store or has a runtime search path" >&2
+    exit 1
+  fi
+  # Backticks, because a dollar sign and parenthesis start a Buck macro.
+  if ! dependencies=`"$PLATFORM/lib64/ld-linux-x86-64.so.2" --library-path "$library_path" --list "$binary" 2>&1`; then
+    printf '%s\\n' "$dependencies" >&2
+    echo "the Steam Runtime 4 loader rejects $binary" >&2
+    exit 1
+  fi
+  if printf '%s\\n' "$dependencies" | grep -F 'not found' >&2; then
+    echo "$binary needs a library Steam Runtime 4 does not have" >&2
+    exit 1
+  fi
+done
+"$READELF" --program-headers "$OUT/h2" | grep -Fq 'Requesting program interpreter: /lib64/ld-linux-x86-64.so.2'
+""",
+    env = {
+        "H2_OPT_VALUE": OPT,
+        "PLATFORM": host_tool("steamos_platform_sysroot", optional = True) if steamos_enabled() else "",
+        "READELF": host_tool("readelf", optional = True) or "readelf",
+    },
+    cacheable = False,
+    labels = ["uses_local_filesystem_abspaths"],
+    visibility = ["PUBLIC"],
+)
+
+# Valve's devkit-utils scripts, which register and launch a Steam shortcut on
+# the device (https://gitlab.steamos.cloud/devkit/steamos-devkit, MIT).
+python_bootstrap_binary(
+    name = "fetch-devkit-utils",
+    main = "fetch-devkit-utils.py",
+)
+
+genrule(
+    name = "devkit-utils",
+    out = "devkit-utils",
+    bash = "$(exe :fetch-devkit-utils) " +
+           "https://gitlab.steamos.cloud/devkit/steamos-devkit/-/archive/f0610d2b741e599fcf36d0094d494a8ae888c98f/steamos-devkit-f0610d2b741e599fcf36d0094d494a8ae888c98f.tar.gz " +
+           "92f4e2d3b7908531a144948672046f733c254d0ad363ccb8f76e8d6d2db93305 " +
+           "$OUT",
+    labels = ["network_access"],
+)
+
+python_bootstrap_binary(
+    name = "run-script",
+    main = "run.py",
+)
+
+# `buck2 run -c build_mode.mode=release //platform/steamos:run`: copy the
+# package and disc to the Steam Machine ([steamos] device, or found over
+# mDNS) and launch it. Arguments after `--` that run.py does not take go to
+# `h2 play`.
+command_alias(
+    name = "run",
+    args = [
+        "--package",
+        "$(location :package)",
+        "--disc",
+        "$(location //platform/linux:disc)",
+        "--devkit-utils",
+        "$(location :devkit-utils)",
+        "--device",
+        read_config("steamos", "device", ""),
+    ],
+    exe = ":run-script",
+)

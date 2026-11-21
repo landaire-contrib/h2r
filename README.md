@@ -117,6 +117,15 @@ just check           # fmt, clippy and tests, as before a push
 
 `cargo h2 <command>` runs the CLI straight from the checkout. Every recipe, the full command list and Ghidra are in [docs/runtime/building.md](docs/runtime/building.md), and [CONTRIBUTING.md](CONTRIBUTING.md) has the rules (the main one: no game data, ever).
 
+On Linux, [Buck2](https://buck2.build) builds everything inside a [devenv](https://devenv.sh) shell. Tell it where your disc is in `.buckconfig.local` (an ISO or a `.7z` holding one):
+
+```ini
+[h2]
+  disc = ~/Downloads/halo2.7z
+```
+
+Then `devenv shell` and `buck2 run //platform/linux:play`. A Steam Machine or Steam Deck in Developer Mode gets the game with `buck2 run //platform/steamos:run`. [docs/runtime/steamos.md](docs/runtime/steamos.md) has the details.
+
 ## Docs
 
 [docs/README.md](docs/README.md) is the index, every doc grouped by area. Good places to start:
