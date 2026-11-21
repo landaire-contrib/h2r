@@ -114,8 +114,8 @@ Explicit assumptions and limits:
 - Publication points above belong to this executable's helper bodies;
   they are not a global next-shape matcher. Guest simulation writes at
   `0x00174420` and all material/property/builder work continue unchanged.
-- Attachment/stage views are held by the handoff for the synchronous
-  reservation. Native identities use the host device plus a unique call
+- Attachment/stage views are held by the handoff for the reservation, on
+  the render thread when it is queued. Native identities use the host device plus a unique call
   epoch and copy, rather than guessing a map or attachment generation.
   Prepared draws never survive that reservation. Pipeline caches contain
   no guest resource handles and are keyed by their shader/state contents.
@@ -239,7 +239,11 @@ The particle walk tries the direct emitter at
 declaration and the same carried attributes as the inline quad. A
 successful reservation bypasses the emitter's guest packet and preserves
 the final default registers. A refused reservation restores the
-defaults and the guest emits the quad in place.
+defaults and the guest emits the quad in place. Behind the render thread
+the reservation is queued with the resolved quad as its D3D packet and
+succeeds once queued: the render thread records the particle or draws
+that packet ([render-thread.md](render-thread.md), "Keeping guest-visible
+semantics exact").
 
 The effects walk admits the effect quad at
 `0x0004b252` from the builder's source and contrails at `0x0004b28c`
@@ -247,7 +251,8 @@ from the builder's output. The return frame and caller arguments must
 still describe the same dynamic call. The quad's known builder only
 copies the four vertices. Contrails run their original builder before
 native issue. The effect leaves and query paths keep their documented
-admission and fallback boundaries.
+admission and fallback boundaries. The effect quad, contrails and the
+guest-issued leaves are queued behind the render thread the same way.
 
 ## Rules and limits
 

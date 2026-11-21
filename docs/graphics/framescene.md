@@ -1176,7 +1176,9 @@ the sink records what the renderer will own.
   colour; anything else is a side target, numbered per frame. A present
   ends the frame: its summary is published (`d3d::scene_sink::last`)
   and its totals counted (`d3d::scene_sink::counters`). Typed stages'
-  packets and passes are not carried.
+  packets and passes are not carried, nor is a queued native draw
+  (`Backend::queue_external_draw`) whether the render thread records it
+  or draws its D3D packet.
 - **Coverage.** `render.scene` reports, with the option, `carried`
   (the last frame's ops by slot, its side targets with the ops that
   named them by slot, and its readbacks in and outside a game view),

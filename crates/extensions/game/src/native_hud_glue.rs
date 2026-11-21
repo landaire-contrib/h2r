@@ -1,6 +1,7 @@
 //! Ordered handoff from the game's UI callbacks to the native UI renderer.
-//! Direct producers keep the guest code as their fallback. A callback that
-//! still issues geometry can retain its immutable packet as worker fallback.
+//! A single-draw pass retains its immutable packet as worker fallback, so a
+//! direct producer commits without waiting for the render thread. A model
+//! draw with sibling ranges keeps the guest code as its fallback.
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -66,7 +67,6 @@ impl Admission {
         &self,
         snapshot: &DrawSnapshot<'_>,
         frame: u32,
-        retain_packet: bool,
         siblings: Arc<[IndexedStreams]>,
     ) -> Option<(ExternalPlan, Box<dyn ExternalPass>)> {
         let draw = snapshot.draw;
@@ -86,7 +86,6 @@ impl Admission {
                 draw: Arc::new(draw.clone()),
                 gpu: self.gpu.clone(),
                 frame,
-                retain_packet,
                 siblings,
             }),
         ))
@@ -107,7 +106,7 @@ impl DrawAdmission for Admission {
         if !scope.eligible {
             return None;
         }
-        self.plan(snapshot, scope.frame, true, Vec::new().into())
+        self.plan(snapshot, scope.frame, Vec::new().into())
     }
 }
 
@@ -128,7 +127,7 @@ impl DrawAdmission for Direct<'_> {
         &self,
         snapshot: &DrawSnapshot<'_>,
     ) -> Option<(ExternalPlan, Box<dyn ExternalPass>)> {
-        self.admission.plan(snapshot, self.frame, false, self.siblings.clone())
+        self.admission.plan(snapshot, self.frame, self.siblings.clone())
     }
 }
 
@@ -136,7 +135,6 @@ struct UiPass {
     draw: Arc<d3d::ResolvedDraw>,
     gpu: Arc<Mutex<UiGpu>>,
     frame: u32,
-    retain_packet: bool,
     siblings: Arc<[IndexedStreams]>,
 }
 
@@ -188,8 +186,9 @@ impl ExternalPass for UiPass {
         }))
     }
 
+    /// The packet is the head draw alone, so sibling ranges have none.
     fn resolved_fallback(&self) -> Option<Arc<d3d::ResolvedDraw>> {
-        self.retain_packet.then(|| self.draw.clone())
+        self.siblings.is_empty().then(|| Arc::clone(&self.draw))
     }
 
     fn writes(&self) -> ExternalWrites {

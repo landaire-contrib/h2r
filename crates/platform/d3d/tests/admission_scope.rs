@@ -143,3 +143,65 @@ fn refused_native_pushed_ui_fan_preserves_state_and_the_guest_draw() {
     assert_eq!(draws.len(), 1);
     assert_eq!(*draws[0], captured[1]);
 }
+
+#[test]
+fn a_native_fan_with_a_retained_packet_commits_without_waiting_for_the_render_thread() {
+    use gfx::vertex::PrimitiveType;
+    use std::sync::{Arc, Mutex};
+
+    struct Retained(Arc<d3d::ResolvedDraw>);
+    impl d3d::ExternalPass for Retained {
+        fn resolved_fallback(&self) -> Option<Arc<d3d::ResolvedDraw>> {
+            Some(Arc::clone(&self.0))
+        }
+        fn writes(&self) -> d3d::ExternalWrites {
+            d3d::ExternalWrites { color: true, depth_stencil: false }
+        }
+    }
+    #[derive(Default)]
+    struct Retain(Mutex<Vec<Arc<d3d::ResolvedDraw>>>);
+    impl d3d::DrawAdmission for Retain {
+        fn admit(&self, snapshot: &d3d::DrawSnapshot<'_>) -> Option<(d3d::ExternalPlan, Box<dyn d3d::ExternalPass>)> {
+            let draw = Arc::new(snapshot.draw.clone());
+            self.0.lock().unwrap().push(Arc::clone(&draw));
+            let plan = d3d::ExternalPlan { stage: timeline::native::Stage::Ui, view: 4, ranges: 1, slots: Vec::new() };
+            Some((plan, Box::new(Retained(draw))))
+        }
+    }
+
+    let fan = PrimitiveType::TriangleFan;
+    let vertices = [[1., 2.], [4., 2.], [4., 7.], [1., 7.]]
+        .map(|[x, y]| [(3, [0.0, 1.0, 0.0, 1.0]), (0, [x, y, 0.0, 1.0])]);
+
+    let (mut guest, mut guest_mem) = create(RecordingBackend::new(), UploadPolicy::Tracked);
+    set_states(&mut guest, &mut guest_mem);
+    quad_vb(&mut guest_mem, 0.0, 0.0, 16.0, 16.0, 0xff_11_22_33);
+    bind_quad(&mut guest, &mut guest_mem);
+    guest.begin(&mut guest_mem, fan.xbox_value()).unwrap();
+    for vertex in &vertices {
+        for &(register, value) in vertex {
+            guest.set_vertex_data(&mut guest_mem, i32::from(register), value).unwrap();
+        }
+    }
+    guest.end(&mut guest_mem).unwrap();
+    let expected = guest.backend.draws()[0].clone();
+
+    // The recording backend cannot supply GPU attachments, so the render
+    // thread refuses the recording and draws the retained packet.
+    let mut backend = RecordingBackend::new();
+    backend.external_passes = true;
+    let (mut device, mut mem) = create(d3d::ThreadedBackend::new(backend).unwrap(), UploadPolicy::Tracked);
+    set_states(&mut device, &mut mem);
+    quad_vb(&mut mem, 0.0, 0.0, 16.0, 16.0, 0xff_11_22_33);
+    bind_quad(&mut device, &mut mem);
+    let owner = Retain::default();
+    let reads = device.backend.waits().reads;
+    assert!(device.try_native_immediate_draw(&mut mem, fan, &vertices, &owner).unwrap());
+    assert_eq!(device.backend.waits().reads, reads);
+    let drawn = device.backend.with_inner(|b| {
+        b.draws().into_iter().cloned().collect::<Vec<_>>()
+    }).unwrap();
+    assert_eq!(drawn, [expected]);
+    assert_eq!(*owner.0.lock().unwrap()[0], drawn[0]);
+    assert_eq!(device.stats().external_passes_dropped, 1);
+}

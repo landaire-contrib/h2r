@@ -5647,9 +5647,11 @@ impl<B: Backend> Device<B> {
         if let Some((plan, pass, binding)) = replacement {
             // Layer-level mask edits and helper scopes need the answer immediately.
             // At a resolved draw the original packet is sufficient for worker fallback
-            // when both routes make precisely the same guest-visible writes.
+            // when both routes make precisely the same guest-visible writes. A native
+            // producer's packet is the draw its guest code would issue, so the
+            // suppression commits here and the worker draws one or the other.
             let tail = pass.indexed_tail();
-            let fallback = if native.is_none() && tail.is_none() && scoped.is_none()
+            let fallback = if tail.is_none() && scoped.is_none()
                 && binding.same_draw_writes(self.render_target, color, depth, writes_depth)
                 && !(parts.indexed_esp.is_some() && compatible_geometry_target && (self.indexed_geometry_scope)())
             {
@@ -5673,6 +5675,7 @@ impl<B: Backend> Device<B> {
                 };
                 if self.backend.queue_external_draw(queued, textures) {
                     self.mark_written(writes_depth);
+                    if let Some((_, committed)) = native.as_mut() { **committed = true; }
                     *streams = draw.streams;
                     return Ok(());
                 }

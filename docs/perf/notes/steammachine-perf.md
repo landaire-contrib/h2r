@@ -206,3 +206,61 @@ admission (`native_particles_admission.rs`, `native_hud_glue.rs`), so
 `Device::submit_inner` takes the synchronous `prepare_external` route: the
 asynchronous `queue_external_draw` route needs `native.is_none()` and a
 `resolved_fallback`, and neither pass opts into `batch_key` pinning.
+
+### Native producers queued instead of waiting (adopted)
+
+Measured on 6078b140 plus this branch. A native producer's draw
+(`Device::try_native_*_draw`) whose pass keeps its resolved D3D packet and
+writes the same targets goes through `queue_external_draw`: the device
+commits the suppression when it queues the draw, and the render thread
+records the pass or draws the packet
+([render-thread.md](../../graphics/render-thread.md), "Keeping
+guest-visible semantics exact"). The particle, effect and single-draw UI
+passes keep their packet. The transparents' range pass already kept one, so
+its round trips go too. A UI model draw with sibling ranges still waits.
+
+Device, 03a gameplay (map ticks 2450-2750), one capture a row. The
+6078b140 row is the same package with `h2` built at that commit; the module
+is the same generator's.
+
+| `h2` | `H2_FEATURES` | fps | busy mean ms | `render-wait` ms | `cpu` ms | render-thread round trips a frame |
+|---|---|---|---|---|---|---|
+| 6078b140 | (all on) | 19.15 | 47.89 | 8.25 | 33.29 | particles 176, UI 57, transparents 4 |
+| queued | (all on) | 23.96 | 39.50 | 0.00 | 32.93 | 0 |
+| queued | (all on), second run | 24.60 | 38.67 | 0.00 | 32.29 | 0 |
+| queued | `-native-particles,-native-hud` | 25.42 | 37.70 | 0.00 | 30.54 | 0 |
+
+The 1.0 to 1.8 ms of busy time left over the last row is the two passes'
+work on the game thread. Their target binding (`native_particles_prepare_ns`,
+`native_ui_prepare_ns`) is 0.44 ms a frame; the rest is not broken down.
+
+Parity on the host (7950X3D, RTX 5080; headless `h2 serve` with
+`H2_BOOT_GFX`, the render thread on, a fresh data directory a run): the
+frame of each map tick from `render.capture`, 6078b140 against queued,
+compared with `h2 agent frame compare`, has 0 differing pixels and
+`max_channel` 0 at 03a map ticks 400, 700, 1200, 1800 (cinematic), 2450,
+2600 and 2750 (gameplay), and 01b map ticks 600, 1600, 3200, 4800, 6000
+(cinematic), 6600, 6900 and 7200 (gameplay, which starts at map tick 6415).
+The host profile, 300 ticks after the last capture:
+
+| level | `h2` | fps | busy mean ms | `render-wait` ms | `cpu` ms | render-thread round trips a frame |
+|---|---|---|---|---|---|---|
+| 03a | 6078b140 | 18.70 | 53.47 | 9.32 | 36.22 | particles 186, UI 28, transparents 4 |
+| 03a | queued | 29.10 | 34.36 | 0.00 | 28.07 | 0 |
+| 01b | 6078b140 | 35.44 | 28.21 | 3.51 | 20.44 | particles 42, UI 46, transparents 11 |
+| 01b | queued | 52.94 | 18.89 | 0.00 | 15.79 | 0 |
+
+To reproduce on the device, run "How to reproduce" above, then
+`./h2 agent wait '{"map":"03a_oldmombasa","map_ticks":2450}' 900000` and
+`./h2 agent profile.capture '{"ticks":300}'`. On the host:
+
+```sh
+H2_OPT=2 H2_LEVEL=03a_oldmombasa H2_BOOT_GFX=$DIR/gfx H2_BOOT_GFX_EVERY=never \
+  h2 serve disc/halo2.iso --out <module> --data $DIR/data --fresh-data
+h2 agent session.wait '{"until":{"map_ticks":2370}}'
+h2 agent render.capture '{"tick": <at.tick + 2450 - at.map_ticks>}'
+h2 agent frame compare a/map-2450.png b/map-2450.png
+```
+
+`at.tick` starts again from 0 when a level's opening cinematic ends, so
+the capture's tick is worked out from the map tick.

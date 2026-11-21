@@ -437,7 +437,7 @@ impl Admission {
                 slots: Vec::new(),
             },
             Box::new(Pass {
-                draw: snapshot.draw.clone(),
+                draw: Arc::new(snapshot.draw.clone()),
                 id: pending.id,
                 color: snapshot.color_header,
                 depth: snapshot.depth_header,
@@ -452,7 +452,7 @@ impl Admission {
 }
 
 struct Pass {
-    draw: d3d::ResolvedDraw,
+    draw: Arc<d3d::ResolvedDraw>,
     id: u64,
     color: u32,
     depth: u32,
@@ -613,6 +613,10 @@ impl ExternalPass for Pass {
             depth_stencil: (r.depth_mode != gfx::state::DepthBufferMode::Disabled && r.depth_write)
                 || r.stencil.enable,
         }
+    }
+    /// One packet per pass: the guest's draw, or the draw a producer stands in for.
+    fn resolved_fallback(&self) -> Option<Arc<d3d::ResolvedDraw>> {
+        Some(Arc::clone(&self.draw))
     }
     fn prepare_copy(&mut self, target: &ExternalTarget<'_>) -> Result<(), &'static str> {
         self.prepared
