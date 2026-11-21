@@ -88,3 +88,121 @@ was built and measured, then removed:
 On the host x86-64-v3 was 0.8% to 2.0% faster in every pair; on the
 device it was within run-to-run noise in both scenes. `znver4` on the host
 was not distinguishable from either.
+
+## 2026-11-21: LTO, allocations and memory access
+
+Measured on master 64bf35e06's parent a7386fd98 plus this branch, except
+where it says 64bf35e06. Same device and captures as above; "03a
+gameplay" is map ticks 2450-2750 with the player idle, "01b" map ticks
+600-1200.
+
+### Thin LTO for `h2` (adopted, default in release)
+
+`-c build_mode.lto=thin` passes `-Clto=thin` to binaries
+(`build-support/buck/workspace_rules.bzl`, `_lto_flags`). The prelude
+passes neither `-Cembed-bitcode=no` nor `-Ccodegen-units`, so rlibs carry
+bitcode and rustc's default of 16 codegen units applies. Same module for
+both columns:
+
+| scene | busy mean ms, off | busy mean ms, thin | `cpu` mean ms, off / thin |
+|---|---|---|---|
+| main menu, 600 ticks | 29.71 | 29.48 | 24.10 / 24.00 |
+| 03a cinematic, 600 ticks | 18.48 | 18.33 | 15.95 / 15.84 |
+| 03a gameplay, 300 ticks | 37.70 (25.43 fps) | 36.53 (26.55 fps) | 30.34 / 29.71 |
+| 01b, 600 ticks | 26.39 | 25.88 | 21.25 / 20.96 |
+| host headless 03a, presents 900-1500, 3 pairs | 54.65-56.46 fps | 56.64-56.86 fps | |
+
+The `h2` link (`rustc link` in `buck2 log critical-path`) takes 29.4 s
+without LTO and 58.8-63.3 s with thin. `fat` was killed for memory on the
+64 GB build host (9 GB free) after 172 s.
+
+### Allocations (dhat)
+
+`-c build_mode.dhat=true`, `H2_LEVEL=03a_oldmombasa
+H2_BOOT_STOP_AT_PRESENT=900 h2 run`, headless on the host (so
+`RecordingBackend` sites are headless-only). 10.0 M blocks over 900
+presents, 11,100 a present including the load. By count:
+
+| site | blocks | per present |
+|---|---|---|
+| `Guest::take_dirty` from the D3D write barrier (`d3d_glue::barrier_handler`) | 2,221,456 | 2,468 |
+| `RecordingBackend::draw` (headless only) | 1,282,602 | 1,425 |
+| `GuestMemory::read_words` (a byte `Vec`, then a `Vec<u32>`) | 927,942 | 1,031 |
+| `level_boot::disc_levels` (once, at boot) | 671,600 | |
+| `IndexedPass::candidate` (`Arc::new(draw.clone())`, 549 MB) | 575,546 | 640 |
+| kernel trace (`trace::install_bounded`) | 482,299 | 536 |
+| `Mixer::render_split` | 291,388 | 324 |
+
+By bytes the largest are texture decode (2.6 GB), guest stream copies
+(`read_append`, 3.1 GB) and the headless surface readbacks. The barrier
+now drains into a per-thread buffer (`Guest::take_dirty_into`) and
+`read_words` reads into its one `Vec<u32>`: 7.7 M blocks for the same run
+(2,550 fewer a present), `take_dirty` 636 blocks, `read_words` 463,971.
+That is too small to separate from run-to-run noise in a frame capture.
+
+### Memory access
+
+`perf stat -t <guest tid>` for 10 s in 03a (v3 build, 2026-11-20):
+26.8 G cycles, 38.4 G instructions (IPC 1.43), 1.9 M dTLB load misses,
+23.9 M iTLB load misses, 205 M L1D load misses of 12.6 G loads. Demand
+fills from DRAM: 10.3 M in 5 s.
+
+- **dTLB.** SteamOS runs THP `always`; 58 of guest RAM's 64 MiB
+  (`0x40001000`) is on huge pages, and page walks from dTLB misses are
+  about 0.2% of cycles. `MADV_HUGEPAGE` would change nothing here.
+- **iTLB.** About 2.4 M misses a second against 690 MB of module text and
+  90 MB of `h2` text on 4 KiB pages (`FilePmdMapped: 0`; the kernel lacks
+  `CONFIG_READ_ONLY_THP_FOR_FS`, so `MADV_COLLAPSE` cannot fold file
+  text). At about 25 cycles a walk that is 2-3% of the game thread. Copying
+  the hot text into anonymous huge pages would remove it, but breaks
+  `perf` symbols for that range; not built.
+- **DRAM misses.** Sampling `ls_dmnd_fills_from_sys.dram_io_near:u` with
+  call branches (`-j any_call,u`): 44% land in libc `memcpy`/`malloc`. Of
+  those, 37% are `Guest::read_append` (copying a draw's vertex streams out
+  of guest RAM) and 19% `Device::write_back_overlapping` (render-target
+  write-back into guest RAM). Both copies are how the D3D path works, not
+  waste a small change removes.
+
+### Not changed: `VertexLayout` per draw
+
+`Device::vertex_setup` clones the memoized `Vec<StreamLayout>` for every
+programmable draw (0.3% of the game thread, one allocation per stream).
+`ResolvedDraw::layout`, `IndexedStreams::layout`, `IndexedGeometry::layout`
+and `DrawParts` all own a `VertexLayout`, and about 140 sites in d3d,
+game, native-render and their tests build or move one, so an `Arc` is not
+a contained change for that gain.
+
+### The scene-effect passes now on in `h2 build` modules
+
+From module generator `778b84f5`, which exposes the scene-effect site
+entries, the native particle, HUD, transparent, decal, post and
+scene-list passes run in a Buck-built module. The same package also has
+64bf35e06 (model detail by camera distance). 03a gameplay with thin LTO
+went from 26.55 fps (busy 36.53 ms, `render-wait` 0.0) to 19.74 fps. One
+package, each pass turned off at run time (`run.py --env H2_FEATURES=...`):
+
+| `H2_FEATURES` | fps | busy mean ms | `render-wait` ms | `cpu` ms | render-thread round trips a frame |
+|---|---|---|---|---|---|
+| (all on) | 19.74 | 46.63 | 7.74 | 32.79 | particles 176, HUD 57 |
+| `-native-particles` | 21.94 | 42.51 | 4.46 | 31.35 | HUD 57 |
+| `-native-hud` | 20.45 | 45.12 | 6.44 | 32.21 | particles 176 |
+| `-native-particles,-native-hud` | 23.82 | 39.74 | 1.27 | 31.28 | 0 |
+| all six off | 24.38 | 38.99 | 0.00 | 31.45 | 0 |
+| `-native-transparents` / `-native-decals` / `-native-post` / `-native-scene-lists` / `-lod-distance` | 19.3-20.0 | 46.0-47.7 | 7.5-8.1 | 32.4-33.4 | |
+
+The particle and HUD passes cost most of it. They block the game thread
+on a render-thread round trip per admitted draw
+(`ThreadedBackend::pin_external_run`, counted as
+`native_<stage>_worker_round_trips`). The render thread is not GPU-bound:
+`gpu-wait` stays at 0.01 ms, with about 5.8 ms of encode and 6.3 ms of
+submit a frame. With all six off, about 2.5 ms of busy time (1.7 ms of
+`cpu`) over the earlier build remains, which no run-time switch removes.
+
+Per round trip, from the rows above: turning particles off removes 176
+trips and 4.1 ms of busy time a frame (about 23 us each, 3.3 ms of it
+`render-wait`); the HUD's 57 trips cost 1.5 ms (about 26 us each). Both
+passes reach the device through `try_native_inline_draw` with a `Direct`
+admission (`native_particles_admission.rs`, `native_hud_glue.rs`), so
+`Device::submit_inner` takes the synchronous `prepare_external` route: the
+asynchronous `queue_external_draw` route needs `native.is_none()` and a
+`resolved_fallback`, and neither pass opts into `batch_key` pinning.

@@ -235,6 +235,7 @@ impl Guest {
     pub fn unwatch_writes(&mut self, id: WatchId, addr: u32, len: u32) -> Result<(), WatchError>;
     pub fn has_dirty(&self, id: WatchId) -> bool;
     pub fn take_dirty(&mut self, id: WatchId) -> Result<Vec<DirtyRange>, WatchError>;
+    pub fn take_dirty_into(&mut self, id: WatchId, out: &mut Vec<DirtyRange>) -> Result<(), WatchError>;
     pub fn writes_unreported<R>(&mut self, id: WatchId, f: impl FnOnce(&mut Guest) -> R)
         -> Result<R, WatchError>;
     pub fn fold_address(&self, va: u32) -> Option<u32>;

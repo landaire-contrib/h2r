@@ -1926,12 +1926,20 @@ pub fn barrier_handler(
 + Send
 + Sync
 + 'static {
+    thread_local! {
+        // The barrier drains on every D3D entry; reusing one buffer per
+        // thread keeps that free of allocation.
+        static DIRTY: std::cell::Cell<Vec<runtime::DirtyRange>> = const { std::cell::Cell::new(Vec::new()) };
+    }
     move |cpu, ctx, selector| {
-        // The guard goes before `prev` runs: it takes memory itself.
-        let dirty = ctx.runtime().memory().take_dirty(id).unwrap_or_default();
+        let mut dirty = DIRTY.take();
+        // The guard goes before `prev` runs: it takes memory itself. An
+        // unknown id leaves `dirty` empty.
+        let _ = ctx.runtime().memory().take_dirty_into(id, &mut dirty);
         if !dirty.is_empty() {
             note(&dirty);
         }
+        DIRTY.set(dirty);
         Ok(prev.invoke(cpu, ctx, selector))
     }
 }

@@ -274,6 +274,14 @@ impl Guest {
     /// Return and clear the dirty pages, coalesced into ascending, disjoint,
     /// non-adjacent runs in the folded view. Empty when nothing changed.
     pub fn take_dirty(&mut self, id: WatchId) -> Result<Vec<DirtyRange>, WatchError> {
+        let mut out = Vec::new();
+        self.take_dirty_into(id, &mut out)?;
+        Ok(out)
+    }
+    /// [`take_dirty`](Self::take_dirty) into `out`, which is cleared first, so
+    /// a caller draining on every guest call reuses one buffer.
+    pub fn take_dirty_into(&mut self, id: WatchId, out: &mut Vec<DirtyRange>) -> Result<(), WatchError> {
+        out.clear();
         self.fold_cards();
         let s = self.watch.get(id)?;
         let range = |(a, b): (usize, usize)| DirtyRange {
@@ -281,7 +289,7 @@ impl Guest {
             len: ((b - a) as u32) << PAGE_SHIFT,
         };
         if !s.any_dirty {
-            return Ok(Vec::new());
+            return Ok(());
         }
         s.any_dirty = false;
         let (lo, hi) = std::mem::replace(&mut s.dirty_words, (WORDS, 0));
@@ -296,7 +304,7 @@ impl Guest {
                 (word & !(word << 1 | below)).count_ones() as usize
             })
             .sum();
-        let mut out: Vec<DirtyRange> = Vec::with_capacity(starts);
+        out.reserve(starts);
         let mut run: Option<(usize, usize)> = None;
         for w in lo..hi {
             let mut word = std::mem::take(&mut s.dirty[w]);
@@ -322,7 +330,7 @@ impl Guest {
         }
         out.extend(run.map(range));
         self.watch.epoch = self.watch.epoch.wrapping_add(1);
-        Ok(out)
+        Ok(())
     }
     /// Run `f` with `id` muted: its writes, and any other write made through
     /// this guard meanwhile, do not dirty `id`'s pages. Other subscribers still

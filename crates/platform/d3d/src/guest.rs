@@ -81,13 +81,14 @@ pub trait GuestMemory {
             addr,
             len: u32::MAX,
         })?;
-        let bytes = self.read_vec(addr, len)?;
-        Ok(bytes
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|c| u32::from_le_bytes(*c))
-            .collect())
+        check_range(addr, len)?;
+        let mut words = vec![0u32; n];
+        self.read(addr, bytemuck::cast_slice_mut(&mut words))?;
+        // The guest's words are little endian; a no-op on a little-endian host.
+        for w in &mut words {
+            *w = u32::from_le(*w);
+        }
+        Ok(words)
     }
 }
 
