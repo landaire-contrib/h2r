@@ -27,14 +27,14 @@ copies. Nothing is ever written next to it.
 | --- | --- | --- |
 | `--out DIR` | `$TMPDIR/h2boot` | generated C (`src/`), objects, `libh2game.dylib` and its `.stamp` (image hash, generator source hash, IR passes, `H2_ACCESS_COUNT`, ABI, compiler flags: `run` rebuilds a dylib stamped for another image or generator), `kernel-trace.tsv` |
 | `--tier auto\|fast\|clang` | `auto` | which module `run` boots: clang's optimised one when it is current, else the Cranelift fast tier with clang's build started in the background (`H2_TIER` is the same; `crates/runtime/recomp/src/tier.rs`, [cranelift-tier.md](../lifter/cranelift-tier.md)) |
-| `--data DIR` | `~/Library/Application Support/h2recomp/data` | VFS host storage (`disk/PartitionN`, `metadata/PartitionN`) |
+| `--data DIR` | `~/Library/Application Support/h2recomp/data` (`%LOCALAPPDATA%\h2recomp\data` on Windows; `~/.local/share/h2recomp/data` on other Unix; `H2_DATA`) | VFS host storage (`disk/PartitionN`, `metadata/PartitionN`) |
 | `--jobs N` | cores | clang parallelism |
 | `--slices N` | 100000 (`h2 serve`: no limit) | cooperative scheduler slices before giving up |
 | `--transfers N` | 50M | runner transfers per slice |
 | `--no-stopgaps` | | run on the bare kernel: no boot stopgaps or wrappers, and no fallback interpreter (an unsupported instruction stops the run where generated code reported it) |
 | `--fresh-data` | | empty `<data>/disk` and `<data>/metadata` first; refused, deleting nothing, if the disc, image or `--out` is inside either |
 | `--no-d3d`, `--no-dsound`, `--no-bink`, `--no-xapi` | | leave that HLE crate unregistered |
-| `--movies DIR` | app data (`~/Library/Application Support/h2recomp/movies`) | where `h2 movies` installed the transcodes; the current ones play ([bink-hle.md](../audio/bink-hle.md)); the run logs `movies: playback (...)` or `movies: skip (...)` |
+| `--movies DIR` | app data (`~/Library/Application Support/h2recomp/movies`; `%LOCALAPPDATA%\h2recomp\movies` on Windows; `~/.local/share/h2recomp/movies` on other Unix) | where `h2 movies` installed the transcodes; the current ones play ([bink-hle.md](../audio/bink-hle.md)); the run logs `movies: playback (...)` or `movies: skip (...)` |
 | `--no-movies` | | skip every movie (Bink HLE skip mode) |
 | `--no-mappack` | | skip installing a `mappack.iso` beside the disc into `--data` (`H2_MAPPACK=0` does the same; [map-pack.md](../game/map-pack.md)) |
 | `--no-halo1` | | skip the Halo 1 content setup |

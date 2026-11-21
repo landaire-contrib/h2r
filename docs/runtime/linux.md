@@ -1,14 +1,90 @@
-# Linux x86-64 game module
+# Linux x86-64 desktop and game module
 
-Status: Built. A reference for the Linux x86-64 module and the headless host build.
-Code: `crates/recompiler/emit/src/compile.rs` (`Arch::X86_64Linux`, `linux_target_args`), `deploy/host/build.sh`.
-Switch: `H2_LINUX_SYSROOT`, `H2_OPT`, see [switches.md](switches.md).
+Status: Built. A reference for the Linux desktop `h2 play`, the Linux x86-64 module and the headless host build.
+Code: `crates/recompiler/emit/src/compile.rs` (`Arch::X86_64Linux`, `linux_target_args`), `crates/platform/gfx/src/context.rs` (`instance`), `crates/formats/content/src/store.rs` (`app_data_dir`), `deploy/host/build.sh`.
+Switch: `H2_LINUX_SYSROOT`, `H2_OPT`, `WGPU_BACKEND`, see [switches.md](switches.md).
 
-The dedicated host runs an ELF64 shared object, `libh2game.so`, built for
-`x86_64-unknown-linux-gnu`. The native handlers and the Rust host use the
-System V AMD64 C ABI. The image uses baseline x86-64 instructions. The
-`--arch x86_64-linux` selector chooses this target even on a Mac. On a
-64-bit Intel or AMD Linux machine, `--arch host` selects it automatically.
+The desktop game and the dedicated host run an ELF64 shared object,
+`libh2game.so`, built for `x86_64-unknown-linux-gnu`. The native handlers
+and the Rust host use the System V AMD64 C ABI. The image uses baseline
+x86-64 instructions. The `--arch x86_64-linux` selector chooses this
+target even on a Mac. On a 64-bit Intel or AMD Linux machine, `--arch
+host` selects it automatically.
+
+## Desktop build
+
+Build `h2` with [Buck2](https://buck2.build) inside the
+[devenv](https://devenv.sh) shell, which supplies Rust, clang, the ALSA,
+udev, Vulkan, Wayland and X11 libraries, and the module toolchain.
+
+```sh
+devenv shell -- buck2 build -c build_mode.mode=release //crates/apps/cli:h2 --show-output
+```
+
+Inside devenv, `build_mode.steamos` is on by default: `h2` links against
+the Steam Runtime sysroot with the system dynamic loader
+(`/lib64/ld-linux-x86-64.so.2`). That binary runs on SteamOS and on a
+desktop distribution whose glibc is as new or newer, and it loads the
+system's Vulkan driver, Wayland and ALSA libraries.
+`-c build_mode.steamos=false` links the Nix glibc instead, which cannot
+load a driver built against a newer system glibc; wgpu then reports no
+Vulkan surface.
+
+Build the game module with clang, ld.lld and llvm-ar on PATH. The devenv
+module toolchain is the directory `buck2 audit config
+host_toolchain.module_toolchain` prints.
+
+```sh
+PATH="<module toolchain>:$PATH" H2_OBJ_CACHE=~/.cache/h2recomp/obj \
+  h2 build disc/halo2.iso --out ~/.cache/h2recomp/boot --tier clang
+h2 play disc/halo2.iso --out ~/.cache/h2recomp/boot
+```
+
+The window uses winit on Wayland or X11. The GPU is wgpu on Vulkan only
+(`gfx::instance`, as on every Unix other than Apple's). `WGPU_BACKEND`
+names other backends for a test. The swapchain prefers `Bgra8Unorm`, then
+`Rgba8Unorm` (`crates/apps/app/src/surface.rs`). Audio is cpal on ALSA,
+which reaches PipeWire through its ALSA plugin. Without an output device
+the game runs with a silent mixer. Controllers come through gilrs (evdev),
+which includes Steam Input's virtual pad. Linux has no movie decoder, so
+the intro movies are skipped, and no raw-HID Steam Controller or DualSense
+opener.
+
+Data lives in `$XDG_DATA_HOME/h2recomp` (`~/.local/share/h2recomp`): the
+game's data root `data/` (`H2_DATA` names another) and the movie
+transcodes `movies/`. Caches, the agent socket and the pipeline cache live
+in `$XDG_CACHE_HOME/h2recomp` (`~/.cache/h2recomp`).
+
+### Prebuilt module without a toolchain
+
+A machine without clang, such as a Steam Machine, runs a module built
+elsewhere. Build it with the same `h2` binary, or one built from the same
+source revision, and the same code-generation settings (`H2_OPT`,
+`H2_DEBUG`, `H2_CPU`, `H2_PASSES` and the other stamp switches unset on
+both, or equal). Build it against the Steam Runtime sysroot, the directory
+`buck2 audit config host_toolchain.steamos_sysroot` prints. Without it
+the devenv toolchain links the Nix glibc, and the module needs a glibc
+newer than SteamOS has.
+
+```sh
+PATH="<module toolchain>:$PATH" H2_LINUX_SYSROOT=<steamos sysroot> \
+  H2_OBJ_CACHE=~/.cache/h2recomp/obj \
+  h2 build disc/halo2.iso --out ~/.cache/h2recomp/boot-steamrt --tier clang
+```
+
+Copy `libh2game.so` and `libh2game.so.stamp` into one directory and name
+it as `--out`. The directory may be read-only. `h2 play` writes nothing
+there when the stamp is current.
+
+```sh
+h2 play halo2.iso --out ~/h2/boot --tier clang
+```
+
+A current stamp loads the module and compiles nothing. `--tier clang`
+makes a stale module stop with clang's error rather than start the
+Cranelift fast tier, which also links through clang. The stamp does not
+record `H2_LINUX_SYSROOT`, so a module built against the sysroot also
+loads in a desktop `h2`.
 
 ## Headless host build
 
@@ -96,12 +172,12 @@ to use the installed tables.
 
 ## Module checks
 
-This lane has not built or run the Linux image. On the coordinator's
-cross-build, inspect the ELF header, SONAME, dependencies and exported
-bridge entry points with `readelf -h -d -Ws libh2game.so`. On the target
-Debian image, check the stamp, load with the release headless `h2`, and
-exercise the bridge, x87 helpers and generated dispatch by booting to a
-joinable lobby. Use the game agent API to observe the lobby on that run.
+Inspect the ELF header, SONAME, dependencies and exported bridge entry
+points with `readelf -h -d -Ws libh2game.so`. On the target image, check
+the stamp, load with the release `h2`, and exercise the bridge, x87
+helpers and generated dispatch by booting to the main menu or a joinable
+lobby. Use the game agent API to observe it (`h2 agent status`,
+`h2 agent frame snap 2`).
 
 ## Runtime
 

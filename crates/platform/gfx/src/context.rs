@@ -59,6 +59,22 @@ impl GfxContext {
 
     /// Headless context (no surface), blocking.
     pub fn headless() -> Result<Self, GfxError> {
-        pollster::block_on(Self::new(wgpu::Instance::default(), None))
+        pollster::block_on(Self::new(instance(), None))
     }
+}
+
+/// Backends used when `WGPU_BACKEND` is unset. Apple and Windows hosts keep
+/// every backend; every other Unix asks for Vulkan only, so adapter selection
+/// cannot land on GLES, which cannot present on Wayland without a display
+/// handle.
+pub fn default_backends() -> wgpu::Backends {
+    if cfg!(any(target_vendor = "apple", windows)) { wgpu::Backends::all() } else { wgpu::Backends::VULKAN }
+}
+
+/// The wgpu instance every host window and headless context starts from:
+/// `WGPU_BACKEND` when set, else [`default_backends`].
+pub fn instance() -> wgpu::Instance {
+    let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
+    desc.backends = wgpu::Backends::from_env().unwrap_or_else(default_backends);
+    wgpu::Instance::new(desc)
 }

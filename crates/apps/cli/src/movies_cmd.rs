@@ -29,7 +29,8 @@ const USAGE: &str = "usage: h2 movies [<iso>] [--out DIR] [--ffmpeg PATH] [--for
 Converts the Bink (.bik) movies on the disc to H.264/AAC MP4 using your own
 ffmpeg, which must include the Bink decoder. The movies are optional: without
 them the game simply skips them. --out defaults to the app data directory
-(~/Library/Application Support/h2recomp/movies), where `h2 play` looks for
+(~/Library/Application Support/h2recomp/movies, %LOCALAPPDATA%\\h2recomp\\movies
+on Windows, ~/.local/share/h2recomp/movies elsewhere), where `h2 play` looks for
 them; --movies DIR names another, and makes headless `h2 run` play them.
 
 exit codes: 0 all done, 1 a movie failed, 2 bad arguments,

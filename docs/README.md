@@ -50,7 +50,8 @@ are under [Reviews](#reviews).
 - [cache-slots.md](runtime/cache-slots.md): the campaign cache-slot integration test
 - [tvos.md](runtime/tvos.md): building and deploying to Apple TV (`platform/tvos`, `H2_EMIT_TARGET=tvos`)
 - [windows.md](runtime/windows.md): cross-building the runtime and the game module as a Windows DLL from a Mac (`x86_64-pc-windows-msvc`)
-- [linux.md](runtime/linux.md): the Linux x86-64 game module (`libh2game.so`) the dedicated host runs, cross-built from a Mac
+- [linux.md](runtime/linux.md): the Linux desktop `h2 play` (Buck2 build, Vulkan, XDG data, a prebuilt module on a machine without clang) and the Linux x86-64 game module (`libh2game.so`) the dedicated host runs
+- [steamos.md](runtime/steamos.md): playing on Linux and on a Steam Machine in Developer Mode through Buck (`//platform/linux:play`, `//platform/steamos:run`), the disc from `.buckconfig.local`
 - [xbox.md](runtime/xbox.md): the UWP app for an Xbox in Dev Mode, packaged, signed and deployed from a Mac (`platform/xbox`, `H2_EMIT_TARGET=windows`)
 - [title-updates.md](runtime/title-updates.md): design for title-update XBEs (1.1 and later): what assumes the 1.0 image, the address-map plan; design only, the one built part is `h2 import-mappack` copying the Map Pack's update aside
 - [second-executor.md](runtime/second-executor.md): a second guest executor, the runtime building block the pipelined-render prototype needs (`impl.render.pipelined_frame=on`)
@@ -59,6 +60,7 @@ are under [Reviews](#reviews).
 
 ## Development (`dev/`)
 
+- [buck.md](dev/buck.md): the Buck2 build on Linux: the devenv shell, `.buckconfig.local`, the generated BUCK files (`scripts/update-buck.py`), Reindeer fixups, the SteamOS sysroot mode
 - [build-speed.md](dev/build-speed.md): the Rust build and test loop: the dev profile, one test binary per crate (`tests/it.rs`), building many worktrees (target directories, the cache), `cargo xtask` (the affected packages, the test ledger, one nextest run per branch); the measurement plan and what is left
 - Notes: [2026-11-20-nightly-rust.md](dev/notes/2026-11-20-nightly-rust.md) (nightly Rust, Cranelift and `-Zthreads` timed against stable), [not-adopted.md](dev/notes/not-adopted.md) (developer tooling experiments that lost)
 

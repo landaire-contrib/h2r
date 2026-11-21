@@ -221,13 +221,9 @@ pub fn parse(args: Vec<String>, env: impl Fn(&str) -> Option<String>) -> Result<
     }
     let root = match root {
         Some(r) => r,
-        None => vfs::default_data_root(
-            cfg!(windows),
-            env("HOME").map(Into::into),
-            env("LOCALAPPDATA").map(Into::into),
-        )
-        .context("application data directory is unavailable; pass --root")?
-        .join("coop-test"),
+        None => content::store::app_data_dir(content::store::DataHost::CURRENT, |name| env(name).map(Into::into))
+            .context("application data directory is unavailable; pass --root")?
+            .join("coop-test"),
     };
     Ok(Cmd::Test(Opts {
         disc,

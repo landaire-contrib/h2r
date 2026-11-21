@@ -125,28 +125,12 @@ impl Config {
             .join(CONTENT_DIR)
             .join(content_dir_name(offer_id))
     }
-    /// The layout under the host's default data root: see [`default_data_root`].
+    /// The layout under the host's default data root:
+    /// [`content::store::app_data_dir`].
     pub fn for_title(title_id: u32) -> Result<Self> {
-        let root = default_data_root(cfg!(windows), std::env::var_os("HOME"), std::env::var_os("LOCALAPPDATA"))
+        let root = content::store::app_data_dir(content::store::DataHost::CURRENT, |name| std::env::var_os(name))
             .ok_or(Error::InvalidParameter)?;
         Ok(Self::new(root, title_id))
-    }
-}
-
-/// Where the game's data (hard disk, settings, saves) lives by default:
-/// `~/Library/Application Support/h2recomp` (on every Unix), or
-/// `%LOCALAPPDATA%\h2recomp` on Windows (`windows`). `None` when the
-/// variable is unset or empty. A UWP host passes its package's LocalFolder
-/// to [`Config::new`] instead.
-pub fn default_data_root(
-    windows: bool,
-    home: Option<std::ffi::OsString>,
-    local_app_data: Option<std::ffi::OsString>,
-) -> Option<PathBuf> {
-    if windows {
-        Some(PathBuf::from(local_app_data.filter(|p| !p.is_empty())?).join("h2recomp"))
-    } else {
-        Some(PathBuf::from(home.filter(|p| !p.is_empty())?).join("Library/Application Support/h2recomp"))
     }
 }
 
@@ -1099,24 +1083,5 @@ impl Drop for Vfs {
         for handle in handles {
             let _ = self.close(Handle(handle));
         }
-    }
-}
-
-#[cfg(test)]
-mod data_root_tests {
-    use super::*;
-
-    #[test]
-    fn the_default_data_root_follows_the_host() {
-        let os = |s: &str| Some(std::ffi::OsString::from(s));
-        assert_eq!(
-            default_data_root(false, os("/h"), os("/l")),
-            Some(PathBuf::from("/h/Library/Application Support/h2recomp"))
-        );
-        assert_eq!(default_data_root(true, os("/h"), os("/l")), Some(PathBuf::from("/l").join("h2recomp")));
-        assert_eq!(default_data_root(false, None, os("/l")), None);
-        assert_eq!(default_data_root(false, os(""), os("/l")), None);
-        assert_eq!(default_data_root(true, os("/h"), None), None, "Windows never falls back to HOME");
-        assert_eq!(default_data_root(true, os("/h"), os("")), None);
     }
 }

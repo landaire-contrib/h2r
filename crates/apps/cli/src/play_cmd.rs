@@ -33,7 +33,8 @@ const USAGE: &str = "usage:
 Opens a window and runs the recompiled game live (builds the dylib first when
 --out has none, or one built from another image or generator). --out and
 --data default to $TMPDIR/h2boot and ~/Library/Application Support/h2recomp/data
-($H2_DATA if set; saves live there), as for `h2 run`.
+(~/.local/share/h2recomp/data on other Unix; $H2_DATA if set; saves live there), as
+for `h2 run`.
 --tier (or H2_TIER) as for `h2 run`: by default clang's module when current,
 else the Cranelift fast tier (built in seconds) with clang's build started in
 the background for the next start. --slices is unlimited by default.

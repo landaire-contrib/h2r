@@ -54,12 +54,47 @@ pub fn find_ffmpeg(
         .find(|c| c.is_file())
 }
 
-/// Default data destination for the native macOS application.
+/// Whose per-user data convention [`app_movies_dir`] follows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DataHost {
+    Apple,
+    Windows,
+    Xdg,
+}
+
+impl DataHost {
+    const CURRENT: Self = if cfg!(target_vendor = "apple") {
+        Self::Apple
+    } else if cfg!(windows) {
+        Self::Windows
+    } else {
+        Self::Xdg
+    };
+}
+
+/// Default data destination for the native desktop application, beside the
+/// game's data root: `~/Library/Application Support/h2recomp/movies` on
+/// Apple hosts, `%LOCALAPPDATA%\h2recomp\movies` on Windows and
+/// `$XDG_DATA_HOME/h2recomp/movies` (else `~/.local/share/...`) elsewhere.
 pub fn app_movies_dir() -> io::Result<PathBuf> {
-    let home = std::env::var_os("HOME")
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "HOME is not set"))?;
-    Ok(PathBuf::from(home).join("Library/Application Support/h2recomp/movies"))
+    movies_dir_for(DataHost::CURRENT, |name| std::env::var_os(name))
+}
+
+fn movies_dir_for(host: DataHost, env: impl Fn(&str) -> Option<std::ffi::OsString>) -> io::Result<PathBuf> {
+    let var = |name: &str| env(name).filter(|s| !s.is_empty()).map(PathBuf::from);
+    let need = |name: &str| {
+        var(name).ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{name} is not set")))
+    };
+    let base = match host {
+        DataHost::Apple => need("HOME")?.join("Library/Application Support"),
+        DataHost::Windows => need("LOCALAPPDATA")?,
+        // The XDG spec has a relative XDG_DATA_HOME ignored.
+        DataHost::Xdg => match var("XDG_DATA_HOME").filter(|p| p.is_absolute()) {
+            Some(xdg) => xdg,
+            None => need("HOME")?.join(".local/share"),
+        },
+    };
+    Ok(base.join("h2recomp").join("movies"))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -711,6 +746,24 @@ mod tests {
         );
     }
     #[test]
+    fn the_movies_dir_follows_the_host() {
+        let vars = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| std::ffi::OsString::from(v))
+        };
+        // Absolute on the host running the test, as `XDG_DATA_HOME` must be.
+        const XDG: &str = if cfg!(windows) { r"C:\x" } else { "/x" };
+        let all = vars(&[("HOME", "/h"), ("LOCALAPPDATA", "/l"), ("XDG_DATA_HOME", XDG)]);
+        let dir = |host, env| movies_dir_for(host, env).ok();
+        assert_eq!(dir(DataHost::Apple, all), Some(PathBuf::from("/h/Library/Application Support/h2recomp/movies")));
+        assert_eq!(dir(DataHost::Windows, all), Some(PathBuf::from("/l").join("h2recomp").join("movies")));
+        assert_eq!(dir(DataHost::Xdg, all), Some(PathBuf::from(XDG).join("h2recomp").join("movies")));
+        let relative = vars(&[("HOME", "/h"), ("XDG_DATA_HOME", "rel")]);
+        assert_eq!(dir(DataHost::Xdg, relative), Some(PathBuf::from("/h/.local/share/h2recomp/movies")));
+        assert_eq!(dir(DataHost::Windows, vars(&[("HOME", "/h")])), None, "Windows never falls back to HOME");
+        assert_eq!(dir(DataHost::Apple, vars(&[("HOME", "")])), None);
+        assert_eq!(dir(DataHost::Xdg, vars(&[])), None);
+    }
+    #[test]
     fn ffmpeg_discovery_order() {
         let t = std::env::temp_dir().join(format!("h2-find-ffmpeg-{}", std::process::id()));
         let _ = fs::remove_dir_all(&t);
@@ -738,7 +791,7 @@ mod tests {
             Some(on_path.join("ffmpeg"))
         );
         // Finder-style PATH without ffmpeg falls back to the package dirs.
-        let finder = std::ffi::OsStr::new("/usr/bin:/bin");
+        let finder = empty.as_os_str();
         assert_eq!(
             find(None, None, Some(finder)),
             Some(fallback.join("ffmpeg"))

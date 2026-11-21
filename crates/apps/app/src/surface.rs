@@ -1,4 +1,4 @@
-//! The swapchain the shell presents into: a winit window's (macOS) or a
+//! The swapchain the shell presents into: a winit window's (desktop) or a
 //! `CAMetalLayer` a native host hands over (tvOS, [`crate::embedded`]).
 
 use gfx::GfxContext;
@@ -29,12 +29,7 @@ impl WindowSurface {
         app: &AppConfig,
     ) -> anyhow::Result<Self> {
         let caps = surface.get_capabilities(&ctx.adapter);
-        let format = caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| !f.is_srgb())
-            .or_else(|| caps.formats.first().copied())
+        let format = surface_format(&caps.formats)
             .ok_or_else(|| anyhow::anyhow!("window surface reports no formats"))?;
         let dimension_limit = ctx.device.limits().max_texture_dimension_2d.min(MAX_FRAME_DIMENSION);
         let size = limit_drawable(size, dimension_limit);
@@ -153,6 +148,47 @@ impl WindowSurface {
                 eprintln!("app: surface: {other:?}");
                 None
             }
+        }
+    }
+}
+
+/// Vulkan drivers and compositors may list 10-bit or float formats first;
+/// the compositor is written for 8-bit unorm output.
+fn surface_format(formats: &[wgpu::TextureFormat]) -> Option<wgpu::TextureFormat> {
+    [wgpu::TextureFormat::Bgra8Unorm, wgpu::TextureFormat::Rgba8Unorm]
+        .into_iter()
+        .find(|f| formats.contains(f))
+        .or_else(|| formats.iter().copied().find(|f| !f.is_srgb()))
+        .or_else(|| formats.first().copied())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::surface_format;
+    use wgpu::TextureFormat as F;
+
+    #[test]
+    fn the_surface_format_is_8_bit_unorm_when_offered() {
+        // Capability lists as wgpu-hal 30 reports them.
+        let cases: &[(&str, &[F], Option<F>)] = &[
+            ("metal", &[F::Bgra8Unorm, F::Bgra8UnormSrgb, F::Rgba16Float], Some(F::Bgra8Unorm)),
+            (
+                "dx12",
+                &[F::Bgra8UnormSrgb, F::Bgra8Unorm, F::Rgba8UnormSrgb, F::Rgba8Unorm, F::Rgb10a2Unorm, F::Rgba16Float],
+                Some(F::Bgra8Unorm),
+            ),
+            (
+                "vulkan, 10-bit first",
+                &[F::Rgb10a2Unorm, F::Bgra8Unorm, F::Bgra8UnormSrgb, F::Rgba16Float],
+                Some(F::Bgra8Unorm),
+            ),
+            ("rgba only", &[F::Rgba8UnormSrgb, F::Rgba8Unorm], Some(F::Rgba8Unorm)),
+            ("no 8-bit unorm", &[F::Bgra8UnormSrgb, F::Rgba16Float], Some(F::Rgba16Float)),
+            ("srgb only", &[F::Bgra8UnormSrgb], Some(F::Bgra8UnormSrgb)),
+            ("none", &[], None),
+        ];
+        for (name, formats, want) in cases {
+            assert_eq!(surface_format(formats), *want, "{name}");
         }
     }
 }

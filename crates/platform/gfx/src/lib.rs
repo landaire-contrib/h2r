@@ -75,7 +75,7 @@ pub mod vertex;
 pub mod xdk;
 
 #[cfg(feature = "gpu")]
-pub use context::{GfxContext, GfxError};
+pub use context::{GfxContext, GfxError, default_backends, instance};
 pub use format::{D3DFormat, HostFormat};
 #[cfg(feature = "gpu")]
 pub use presenter::{Acquired, OffscreenTarget, Presenter, RenderTarget};

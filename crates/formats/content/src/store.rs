@@ -9,6 +9,7 @@
 //! then loses the files the old manifest named and the new one does not.
 //! `active.toml` is rewritten by rename, keeping its other entries.
 use std::{
+    ffi::OsString,
     fs::File,
     io::{self, Write},
     path::{Path, PathBuf},
@@ -22,24 +23,57 @@ use crate::{
 /// The packages directory under a data root.
 pub const MAPS_DIR: &str = "maps";
 
+/// Which per-user application data convention the host follows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DataHost {
+    /// `~/Library/Application Support/h2recomp`.
+    Library,
+    /// `%LOCALAPPDATA%\h2recomp`.
+    Windows,
+    /// `$XDG_DATA_HOME/h2recomp`, else `~/.local/share/h2recomp`.
+    Xdg,
+}
+
+impl DataHost {
+    /// The convention of the host this binary runs on: Apple, Windows, or
+    /// XDG on every other Unix (as `d3d::pipeline_store`'s cache host).
+    pub const CURRENT: Self = if cfg!(target_vendor = "apple") {
+        Self::Library
+    } else if cfg!(windows) {
+        Self::Windows
+    } else {
+        Self::Xdg
+    };
+}
+
+/// The per-user `h2recomp` application data directory under `host`'s
+/// convention, reading variables through `env`. `None` when the variable it
+/// needs is unset or empty. A relative `XDG_DATA_HOME` is ignored, as the
+/// XDG spec requires. A UWP host passes its package's LocalFolder to
+/// `vfs::Config::new` instead.
+pub fn app_data_dir(host: DataHost, env: impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+    let var = |name: &str| env(name).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let base = match host {
+        DataHost::Library => var("HOME")?.join("Library/Application Support"),
+        DataHost::Windows => var("LOCALAPPDATA")?,
+        DataHost::Xdg => var("XDG_DATA_HOME")
+            .filter(|p| p.is_absolute())
+            .or_else(|| var("HOME").map(|h| h.join(".local/share")))?,
+    };
+    Some(base.join("h2recomp"))
+}
+
 /// The runtime's default data root, as `h2 play`, `h2 run` and `h2
-/// settings` use when `--data` is not given: a persistent directory,
-/// `~/Library/Application Support/h2recomp/data` (every Unix) or
-/// `%LOCALAPPDATA%\h2recomp\data` on Windows. `H2_DATA` names another.
-/// It was `$TMPDIR/h2boot-data`, which the system purges and which differs
-/// per shell session, so saves went missing; nothing is taken from there.
+/// settings` use when `--data` is not given: `H2_DATA`, else
+/// `<app data>/data` ([`app_data_dir`]), a persistent directory. Saves are
+/// never put under `$TMPDIR`, which the system purges and which differs per
+/// shell session; it is the root only when no app data directory resolves.
 pub fn default_data_root() -> PathBuf {
     if let Some(d) = std::env::var_os("H2_DATA").filter(|d| !d.is_empty()) {
         return PathBuf::from(d);
     }
-    let base = if cfg!(windows) {
-        std::env::var_os("LOCALAPPDATA").filter(|p| !p.is_empty()).map(PathBuf::from)
-    } else {
-        std::env::var_os("HOME")
-            .filter(|p| !p.is_empty())
-            .map(|h| PathBuf::from(h).join("Library/Application Support"))
-    };
-    base.map_or_else(|| std::env::temp_dir().join("h2boot-data"), |b| b.join("h2recomp").join("data"))
+    app_data_dir(DataHost::CURRENT, |name| std::env::var_os(name))
+        .map_or_else(|| std::env::temp_dir().join("h2boot-data"), |b| b.join("data"))
 }
 
 /// `<data>/maps`.
@@ -256,6 +290,30 @@ mod tests {
             })
             .collect();
         m
+    }
+
+    #[test]
+    fn the_app_data_dir_follows_the_host() {
+        let vars = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| OsString::from(v))
+        };
+        // Absolute on the host running the test, as `XDG_DATA_HOME` must be.
+        const XDG: &str = if cfg!(windows) { r"C:\x" } else { "/x" };
+        let all = vars(&[("HOME", "/h"), ("LOCALAPPDATA", "/l"), ("XDG_DATA_HOME", XDG)]);
+        assert_eq!(app_data_dir(DataHost::Library, &all), Some(PathBuf::from("/h/Library/Application Support/h2recomp")));
+        assert_eq!(app_data_dir(DataHost::Windows, &all), Some(PathBuf::from("/l").join("h2recomp")));
+        assert_eq!(app_data_dir(DataHost::Xdg, &all), Some(PathBuf::from(XDG).join("h2recomp")));
+        let home = vars(&[("HOME", "/h"), ("XDG_DATA_HOME", "")]);
+        assert_eq!(app_data_dir(DataHost::Xdg, &home), Some(PathBuf::from("/h/.local/share/h2recomp")));
+        let relative = vars(&[("HOME", "/h"), ("XDG_DATA_HOME", "rel/data")]);
+        assert_eq!(
+            app_data_dir(DataHost::Xdg, &relative),
+            Some(PathBuf::from("/h/.local/share/h2recomp")),
+            "a relative XDG_DATA_HOME is ignored"
+        );
+        assert_eq!(app_data_dir(DataHost::Library, vars(&[("HOME", ""), ("LOCALAPPDATA", "/l")])), None);
+        assert_eq!(app_data_dir(DataHost::Windows, vars(&[("HOME", "/h")])), None, "Windows never falls back to HOME");
+        assert_eq!(app_data_dir(DataHost::Xdg, vars(&[])), None);
     }
 
     #[test]

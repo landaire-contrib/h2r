@@ -30,9 +30,12 @@ partway (for example `ObjectNameCollision` on a link that already exists), the
 links created before the failure remain. The E:/C:/X:/Y: rows below are the
 reference mapping and are not created by either call.
 
-`Config::for_title` chooses `~/Library/Application Support/h2recomp`;
-`Config::new(root, title_id)` selects an explicit root. Missing or empty HOME is
-a configuration error (`InvalidParameter`), not a guest path error. Halo 2's
+`Config::for_title` chooses `content::store::app_data_dir`:
+`~/Library/Application Support/h2recomp` on Apple hosts, `%LOCALAPPDATA%\h2recomp`
+on Windows and `$XDG_DATA_HOME/h2recomp` (`~/.local/share/h2recomp`) on
+other Unix. `Config::new(root, title_id)` selects an explicit root. A missing or
+empty variable is a configuration error (`InvalidParameter`), not a guest path
+error. Halo 2's
 title ID is `0x4D530064`.
 
 | Link | Resolved device path | Host path relative to data root |

@@ -36,10 +36,12 @@ fn defaults_and_flags() {
     assert!(!o.auto && !o.fresh && !o.dry_run && !o.extras && !o.pad_on_guest);
     assert_eq!(
         o.root,
-        if cfg!(windows) {
+        if cfg!(target_vendor = "apple") {
+            PathBuf::from("/home/player/Library/Application Support/h2recomp/coop-test")
+        } else if cfg!(windows) {
             PathBuf::from(r"C:\Local\h2recomp\coop-test")
         } else {
-            PathBuf::from("/home/player/Library/Application Support/h2recomp/coop-test")
+            PathBuf::from("/home/player/.local/share/h2recomp/coop-test")
         }
     );
     assert_eq!((o.port, o.server_port), (31000, 8075));
