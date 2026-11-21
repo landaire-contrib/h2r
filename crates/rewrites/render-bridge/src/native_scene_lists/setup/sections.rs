@@ -128,7 +128,7 @@ pub(super) fn prepare(
         } else {
             ABSENT
         };
-        choose_lod(m, body, hlmt, state.pixels, old, scene.lod_scale)?
+        choose_lod(m, body, hlmt, state.distance, old, scene.lod_scale)?
     };
     let mut current = initial;
     for i in 0..slots {
@@ -422,11 +422,13 @@ fn effects(
     Ok(())
 }
 
+/// `0x0004bcc0` and `0x0004c450`. The cutoffs at `hlmt + 0x34` are camera
+/// distances, farthest first.
 fn choose_lod(
     m: &dyn GuestMemory,
     body: u32,
     hlmt: u32,
-    mut pixels: f32,
+    mut distance: f32,
     old: u8,
     scale: f32,
 ) -> Result<u8> {
@@ -434,12 +436,12 @@ fn choose_lod(
         return Ok(5);
     }
     if m.u8(FORCE_FULL_LOD)? != 0 {
-        pixels *= m.f32(LOCAL_LOD_SCALE)?;
+        distance *= m.f32(LOCAL_LOD_SCALE)?;
     }
     if m.u8(at(body, 0x10a)?)? & 4 != 0 {
-        pixels *= m.f32(OBJECT_LOD_SCALE)?;
+        distance *= m.f32(OBJECT_LOD_SCALE)?;
     }
-    pixels = object_lod::model_pixels(m, hlmt, pixels, scale);
+    distance = object_lod::model_distance(m, hlmt, distance, scale);
     let block = at(hlmt, 0x28)?;
     let mut thresholds = [0.0; 6];
     for (i, threshold) in thresholds.iter_mut().enumerate() {
@@ -466,14 +468,14 @@ fn choose_lod(
     let limit = m.i32(MAX_LOD)?;
     if !(0..=5).contains(&limit)
         || max_fraction < 0.0
-        || ![upper, pixels, max_fraction]
+        || ![upper, distance, max_fraction]
             .into_iter()
             .chain(thresholds)
             .all(f32::is_finite)
     {
         return Err(Refusal::ObjectModel);
     }
-    let (lod, fraction) = lod_fraction(pixels, thresholds, upper, max_fraction);
+    let (lod, fraction) = lod_fraction(distance, thresholds, upper, max_fraction);
     if !fraction.is_finite() {
         return Err(Refusal::ObjectModel);
     }
@@ -487,16 +489,16 @@ fn choose_lod(
     Ok(lod.min(limit as u8))
 }
 
-fn lod_fraction(pixels: f32, thresholds: [f32; 6], upper: f32, cap: f32) -> (u8, f32) {
+fn lod_fraction(distance: f32, thresholds: [f32; 6], upper: f32, cap: f32) -> (u8, f32) {
     let lod = thresholds
         .iter()
-        .position(|&cut| pixels > cut || cut == 0.0)
+        .position(|&cut| distance > cut || cut == 0.0)
         .unwrap_or(5);
     if lod == 0 && upper <= thresholds[0] {
         return (0, cap);
     }
     let previous = if lod == 0 { upper } else { thresholds[lod - 1] };
-    let fraction = ((previous - pixels) / (previous - thresholds[lod])).clamp(0.0, cap);
+    let fraction = ((previous - distance) / (previous - thresholds[lod])).clamp(0.0, cap);
     (lod as u8, fraction)
 }
 

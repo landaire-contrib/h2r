@@ -27,8 +27,9 @@ forces an anamorphic aspect with `--aspect`. See the
 - **Guest device coordinates.** The device (`d3d::Device`) keeps
   every size, viewport, scissor, header and return value in guest pixels.
   Raster scaling lives below the `d3d::Backend` trait. In offline play
-  model and structure LOD use projected pixels at the accepted render
-  height. Both copies draw the same chosen geometry. See
+  structure LOD uses projected pixels at the accepted render height, and
+  model LOD the camera distance divided by the same factor. Both copies
+  draw the same chosen geometry. See
   [projected size and level of detail](occlusion-culling.md#projected-size-and-level-of-detail).
 - **One draw per target in single-copy mode.** At increased resolution
   the display encoder owns the draw stream, including draws to guest-size intermediates. Guest reads sample the

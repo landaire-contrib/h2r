@@ -49,6 +49,9 @@ struct ObjectState {
     centre: [f32; 3],
     radius: f32,
     pixels: f32,
+    /// Scaled camera distance, the model chooser's input (`0x0004bcc0`'s
+    /// second argument). Children keep their root's, as the guest does.
+    distance: f32,
     opacity: u8,
     lock_pose: bool,
     flags: u32,
@@ -255,6 +258,7 @@ fn setup(m: &dyn GuestMemory, cpu: &CpuAbi, lod_scale: f32) -> Result<Output> {
         centre: [px, py, pz],
         radius,
         pixels: pixel_size,
+        distance,
         opacity,
         lock_pose: row_flags & 0x200 != 0,
         flags,
@@ -698,7 +702,7 @@ mod setup_tests {
     }
 
     #[test]
-    fn object_and_child_choose_sections_at_output_resolution() {
+    fn object_and_child_choose_detail_by_distance_at_output_resolution() {
         let run = |scale, pose_mask| {
             let (mut mem, cpu) = fixture();
             mem.put_u32(ROOT + 4, 1 << 24)
@@ -709,7 +713,8 @@ mod setup_tests {
                 .put_f32(0x0044_ae88, 0.1) // hysteresis
                 .put_f32(0x0045_dc78, 1.0)
                 .put_u32(0x004b_a01c, 5)
-                .put_f32(records::PIXEL_QUANTIZE, 0.5);
+                .put_f32(records::PIXEL_QUANTIZE, 0.5)
+                .put_f32(CAMERA, -100.0);
             for (i, threshold) in [55.0, 35.0, 20.0, 15.0, 5.0, 0.0].into_iter().enumerate() {
                 mem.put_f32(HLMT + 0x34 + 4 * i as u32, threshold);
             }
@@ -720,10 +725,10 @@ mod setup_tests {
             let bytes = [0, 1].map(|i| mem.u8(0x004c_0b84 + i).unwrap());
             (lods, bytes)
         };
-        assert_eq!(run(1.0, 0), ([4; 2], [5; 2]));
-        assert_eq!(run(4.0, 0), ([1; 2], [20; 2]));
-        assert_eq!(run(4.0 * 1.5, 0), ([0; 2], [30; 2]));
-        assert_eq!(run(4.0, 1), ([4; 2], [20; 2]));
+        assert_eq!(run(1.0, 0), ([0; 2], [5; 2]));
+        assert_eq!(run(4.0, 0), ([2; 2], [20; 2]));
+        assert_eq!(run(4.0 * 1.5, 0), ([3; 2], [30; 2]));
+        assert_eq!(run(4.0, 1), ([0; 2], [20; 2]));
     }
 
     #[test]

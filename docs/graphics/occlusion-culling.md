@@ -157,14 +157,19 @@ the original pixel size at every resolution. See the
   factor. The adjusted pixel size controls its fade and zero-alpha cull.
   Each emitted record stores a size byte, saturated at 255.
 - **Object models.** The object walk at `0x00133720` restores the original
-  projection. The guest model chooser at `0x0004c450` and the Rust
-  `native_scene_lists/setup/sections.rs` apply the factor at the model's
-  pixel cutoffs, preserving its transition hysteresis and resident-section
-  fallback. The material record gets its own scaled size byte. For models
-  with pose-dependent sections (`hlmt + 0xc4`), section selection keeps the
-  retail pixel size. The selected sections can clear an object's dirty bit
-  and trigger a shared animation update at `0x000bd7b2`. Object lighting
-  also uses the original size because effects read its cache on the game tick.
+  projection. A model's detail tier follows its camera distance, not its
+  projected size. `0x00133790` passes the camera-to-centre length times
+  `0x004b9dcc` to `0x0004bcc0`, and the chooser at `0x0004c450` compares it
+  with the model's cutoffs at `hlmt + 0x34`, world units, farthest first.
+  The guest chooser and the Rust `native_scene_lists/setup/sections.rs`
+  divide that distance by the factor, so at 1920 lines a model 40 units
+  away picks the detail retail gives it at 10. Both preserve the transition
+  hysteresis and resident-section fallback. The material record gets its
+  own scaled size byte. For models with pose-dependent sections
+  (`hlmt + 0xc4`), section selection keeps the retail distance. The
+  selected sections can clear an object's dirty bit and trigger a shared
+  animation update at `0x000bd7b2`. Object lighting uses the original
+  projected size because effects read its cache on the game tick.
 - **Other view consumers.** Lights and shadow casters compete for a fixed
   budget by relative projected size. Billboard rotation needs both original
   projection axes. Decorator detail and particle fades compare camera

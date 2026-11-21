@@ -762,8 +762,8 @@ points! { ALL;
     LIGHT_GEOMETRY_FLAGS @ 0x0003_1660: [fn(light: eax, definition: ecx, vis: esi, owner: stack 0, root: stack 1, point: stack 2, shadow: stack 3) ret 16]; "docs/graphics/native-renderer.md";
     /// Append the optional owner or owning unit as a dynamic light caster.
     LIGHT_EXTRA_CASTER @ 0x0003_1c20: [fn(shadow: al, owner: ecx, vis: stack 0) ret 4]; "docs/graphics/native-renderer.md";
-    /// Select a model detail tier. The projected radius is in the low float
-    /// of XMM4. The return value and fraction drive the per-view hysteresis.
+    /// Select a model detail tier. The scaled camera distance is in the low
+    /// float of XMM4. The return value and fraction drive the per-view hysteresis.
     MODEL_LOD @ 0x0004_c450: [fn(distances: ecx, fraction: ebx, object: stack 0) -> al ret 4]; "docs/graphics/occlusion-culling.md";
     /// Write one BSP or model render record, with its associated cache state.
     SCENE_RECORD_WRITER @ 0x0002_cbf0: [fn(section: eax, selector: ecx, node_count: edx, pixels: stack 9) -> eax ret 84]; "docs/graphics/native-renderer.md";

@@ -1,6 +1,7 @@
-//! Model section selection and the projected-size byte carried to material draws.
-//! The object setup's original pixel radius also schedules lighting samples read
-//! by effect updates on the game tick, so only these final consumers scale it.
+//! Model section selection by camera distance, and the projected-size byte
+//! carried to material draws. The object setup's original pixel radius also
+//! schedules lighting samples read by effect updates on the game tick, so only
+//! these final consumers apply the view's factor.
 
 use super::*;
 
@@ -10,26 +11,29 @@ const POSE_SECTIONS: u32 = 0xc4;
 const CLUSTER_RECORD_RETURN: u32 = 0x0013_3509;
 const PLACEMENT_RECORD_RETURN: u32 = 0x0013_36d8;
 
+/// More output lines keep detail farther away: the model picks the detail it
+/// would have `scale` times nearer.
+///
 /// At 0xbd750 the selected section bytes index this bitset. A hit can clear
 /// the dirty bit in the live object and evaluate its pose. Keep the choice
 /// and its per-view hysteresis retail for these models, even on clean frames
 /// and for attached objects. Section 0xff denotes an absent region.
-pub(super) fn model_pixels(m: &dyn GuestMemory, hlmt: u32, pixels: f32, scale: f32) -> f32 {
-    if scale == 1.0 || !(scale.is_finite() && scale > 0.0 && pixels.is_finite()) {
-        return pixels;
+pub(super) fn model_distance(m: &dyn GuestMemory, hlmt: u32, distance: f32, scale: f32) -> f32 {
+    if scale == 1.0 || !(scale.is_finite() && scale > 0.0 && distance.is_finite()) {
+        return distance;
     }
     let Some(mask) = hlmt.checked_add(POSE_SECTIONS) else {
-        return pixels;
+        return distance;
     };
     let mut sections = [0u8; 32];
     if m.read(mask, &mut sections).is_err() {
-        return pixels;
+        return distance;
     }
     sections[31] &= 0x7f;
     if sections == [0; 32] {
-        (pixels * scale).clamp(-f32::MAX, f32::MAX)
+        (distance / scale).clamp(-f32::MAX, f32::MAX)
     } else {
-        pixels
+        distance
     }
 }
 
@@ -78,7 +82,7 @@ fn guest_record_argument(m: &dyn GuestMemory, esp: u32, factor: f32) -> Option<(
 
 pub(super) fn install(b: &mut Builder, scale: ViewLodScale) {
     b.raw()
-        .before(&points::MODEL_LOD, "scale model LOD radius", move |c| {
+        .before(&points::MODEL_LOD, "scale model LOD distance", move |c| {
             if c.addr != points::MODEL_LOD.base {
                 return Ok(Flow::Continue);
             }
@@ -89,7 +93,7 @@ pub(super) fn install(b: &mut Builder, scale: ViewLodScale) {
             {
                 let lane = &mut c.cpu.xmm[4][..4];
                 let raw = f32::from_le_bytes(lane[..].try_into().unwrap());
-                lane.copy_from_slice(&model_pixels(&*mem, hlmt, raw, factor).to_le_bytes());
+                lane.copy_from_slice(&model_distance(&*mem, hlmt, raw, factor).to_le_bytes());
             }
             Ok(Flow::Continue)
         })
@@ -123,13 +127,13 @@ mod tests {
     fn a_model_with_pose_dependent_sections_keeps_retail_hysteresis_inputs() {
         let hlmt = 0x10000;
         let mut m = FlatMemory::new(hlmt, 0x100);
-        assert_eq!(model_pixels(&m, hlmt, 7.0, 1.0), 7.0);
-        assert_eq!(model_pixels(&m, hlmt, 7.0, 4.0), 28.0);
-        assert_eq!(model_pixels(&m, hlmt, 7.0, 6.0), 42.0);
+        assert_eq!(model_distance(&m, hlmt, 28.0, 1.0), 28.0);
+        assert_eq!(model_distance(&m, hlmt, 28.0, 4.0), 7.0);
+        assert_eq!(model_distance(&m, hlmt, 21.0, 0.5), 42.0);
         m.set_u8(hlmt + POSE_SECTIONS + 31, 0x40).unwrap();
-        assert_eq!(model_pixels(&m, hlmt, 7.0, 4.0), 7.0);
+        assert_eq!(model_distance(&m, hlmt, 28.0, 4.0), 28.0);
         m.set_u8(hlmt + POSE_SECTIONS + 31, 0x80).unwrap();
-        assert_eq!(model_pixels(&m, hlmt, 7.0, 4.0), 28.0);
+        assert_eq!(model_distance(&m, hlmt, 28.0, 4.0), 7.0);
     }
 
     #[test]
