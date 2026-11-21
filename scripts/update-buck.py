@@ -43,6 +43,10 @@ PLATFORMS = {
 # Paths excluded from a crate's library tree; test targets get everything.
 TEST_ONLY_DIRS = ["tests", "benches", "examples"]
 
+# A binary's Cargo feature that installs the dhat heap profiler as its
+# global allocator (workspace_binary adds it under `-c build_mode.dhat=true`).
+HEAP_PROFILE_FEATURE = "dhat-heap"
+
 # Top-level paths never added to a crate tree: disc/ holds game data, and
 # files directly under crates/ belong to no crate.
 UNREACHABLE = {"buck-out", "crates", "disc", "target"}
@@ -436,7 +440,11 @@ class Crate:
                 "crate_root": self._root(target),
                 "tree": ":lib-tree",
             }
-            out.append(self._call("workspace_binary", name, attrs, plain, conditional, named))
+            bin_attrs = attrs
+            # A package's opt-in heap profiler, turned on with `-c build_mode.dhat=true`.
+            if HEAP_PROFILE_FEATURE in self.manifest.get("features", {}):
+                bin_attrs = attrs | {"heap_profile_feature": HEAP_PROFILE_FEATURE}
+            out.append(self._call("workspace_binary", name, bin_attrs, plain, conditional, named))
             if target["test"]:
                 plain, conditional, named = self.deps({None, "dev"}, True)
                 attrs = attrs | {"tree": ":test-tree"}

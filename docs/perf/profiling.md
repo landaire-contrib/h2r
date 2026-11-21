@@ -198,6 +198,24 @@ Inside the Steam Linux Runtime container libc is the host's
 `/usr/lib/libc.so.6`; it has no symbol table, so its samples show as bare
 offsets.
 
+## Heap profile
+
+```sh
+buck2 build -c build_mode.mode=release -c build_mode.dhat=true //crates/apps/cli:h2
+H2_LEVEL=03a_oldmombasa H2_BOOT_STOP_AT_PRESENT=900 <that h2> run disc/halo2.iso --out <module dir> --tier clang
+```
+
+`-c build_mode.dhat=true` turns on the CLI's `dhat-heap` feature
+(`cargo build -p cli --features dhat-heap` does the same), which makes
+[dhat](https://docs.rs/dhat) the global allocator (`crates/apps/cli/src/main.rs`).
+When `main` returns, it writes `dhat-heap.json` to the working directory: every
+allocation site with its bytes, block count, peak and lifetime. Open it in
+[dh_view](https://nnethercote.github.io/dh_view/dh_view.html). A command that
+ends with `process::exit` (or a window closed from the system) writes
+nothing, so profile `h2 run` with `H2_BOOT_STOP_AT_PRESENT`. dhat records a
+backtrace per allocation, so the game runs several times slower: compare
+counts per frame, not times.
+
 ## Timeline
 
 ```

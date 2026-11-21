@@ -38,6 +38,7 @@ dear-imgui-rs = { version = "=0.22.0", default-features = false, features = ["de
 dear-imgui-wgpu = { version = "=0.22.0", default-features = false, features = ["default", "wgpu-30"] }
 dear-imgui-winit = { version = "=0.22.0", default-features = false, features = ["default"] }
 dear-imguizmo = { version = "=0.22.0", default-features = false }
+dhat = { version = "=0.3.3", default-features = false }
 ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["alloc", "default", "fast", "std", "zeroize"] }
 flate2 = { version = "=1.1.11", default-features = false, features = ["any_impl", "default", "miniz_oxide", "runtime_detection", "rust_backend"] }
 font8x8 = { version = "=0.3.1", default-features = false, features = ["unicode"] }

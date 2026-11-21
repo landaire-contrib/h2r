@@ -89,6 +89,17 @@ def _rustc_flags(dev_opt_level):
         return ["-Copt-level={}".format(dev_opt_level)]
     return []
 
+def _lto_flags():
+    # Cross-crate LTO for binaries: rlibs carry bitcode by default, so only
+    # the final link changes. Thin by default in release, where it cut the
+    # game thread's frame time 1-3% on a Steam Machine for twice the h2 link
+    # time (docs/perf/notes/steammachine-perf.md). Fat needs more memory than
+    # a shared 64 GB host had free.
+    lto = read_config("build_mode", "lto", "thin" if build_mode() == "release" else "off")
+    if lto not in ["off", "thin", "fat"]:
+        fail("[build_mode] lto must be off, thin or fat, got {}".format(lto))
+    return [] if lto == "off" else ["-Clto=" + lto]
+
 def _cargo_env(package, crate, manifest, version, description):
     numbers = version.split("-")[0].split(".")
     return {
@@ -189,8 +200,12 @@ def workspace_binary(
         deps = [],
         named_deps = {},
         buildscript = None,
-        dev_opt_level = None):
+        dev_opt_level = None,
+        heap_profile_feature = None):
+    """`heap_profile_feature` (dhat) is added under `-c build_mode.dhat=true`."""
     script = _buildscript_args(buildscript)
+    if heap_profile_feature != None and read_config("build_mode", "dhat", "false") == "true":
+        features = features + [heap_profile_feature]
     native.rust_binary(
         name = name,
         srcs_filegroup = tree,
@@ -200,7 +215,7 @@ def workspace_binary(
         env = _cargo_env(package, crate, manifest, version, description) | {"CARGO_BIN_NAME": name} | script["env"],
         features = features,
         linker_flags = steamos_linker_flags(),
-        rustc_flags = _rustc_flags(dev_opt_level) + script["rustc_flags"],
+        rustc_flags = _rustc_flags(dev_opt_level) + _lto_flags() + script["rustc_flags"],
         deps = deps,
         named_deps = named_deps,
         visibility = ["PUBLIC"],

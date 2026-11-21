@@ -39,6 +39,9 @@ lift = { workspace = true, optional = true }
 emit = { workspace = true, optional = true }
 ir = { workspace = true, optional = true }
 anyhow.workspace = true
+# The heap profiler behind the `dhat-heap` feature (docs/perf/profiling.md).
+# Not optional, so the Buck rules always have it; unused without the feature.
+dhat = "0.3.3"
 sha2 = { version = "0.10", optional = true }
 boot = { path = "../boot", default-features = false }
 host-data = { path = "../../live/host-data" }
@@ -121,6 +124,9 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 default = ["desktop"]
 # The runtime commands, agent client, simulation and dedicated-host entry point.
 host = []
+# dhat as the global allocator; writes dhat-heap.json when `h2` returns
+# from `main` (`-c build_mode.dhat=true` under Buck).
+dhat-heap = []
 # The windowed client and authoring, import and diagnostic commands.
 desktop = [
     "host",

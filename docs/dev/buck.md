@@ -40,6 +40,8 @@ and any of the keys below.
 | `[steamos] device` | The Steam Machine's host name or address. Found over mDNS when unset. |
 | `[build_mode] mode` | `debug` (default, Cargo's dev profile) or `release`. |
 | `[build_mode] steamos` | Compile and link against the Steam Runtime 4 sysroot, so binaries run on SteamOS and on any newer glibc. On by default when the toolchain has the sysroot (devenv). A Nix-glibc `h2` cannot load the host's Vulkan driver. |
+| `[build_mode] dhat` | `true` builds binaries that declare a `dhat-heap` feature (`h2`) with the dhat heap profiler as their allocator ([profiling.md](../perf/profiling.md#heap-profile)). |
+| `[build_mode] lto` | `off`, `thin` or `fat`: cross-crate LTO when linking binaries. `thin` by default in release (it doubles the `h2` link to about a minute), `off` in debug. `fat` ran out of memory on a 64 GB host. |
 
 ## Targets
 

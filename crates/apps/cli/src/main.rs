@@ -361,7 +361,15 @@ fn perf_cmd(cmd: &str, _: Vec<String>) -> Result<()> {
     )
 }
 
+// Heap profiling (docs/perf/profiling.md, "Heap profile"): every allocation
+// goes through dhat, which writes dhat-heap.json when `main` returns.
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 fn main() -> Result<()> {
+    #[cfg(feature = "dhat-heap")]
+    let _heap = dhat::Profiler::new_heap();
     // Live presence says which build this is (docs/game/game-options.md 3).
     #[cfg(feature = "desktop")]
     boot::live_glue::set_build(app::BuildInfo::baked().sha);
