@@ -15,3 +15,11 @@
 /web/dist
 /docs/images/readme/frames/
 __pycache__/
+# Buck2 output and the machine-local toolchain section.
+/buck-out
+/.buckconfig.local
+# devenv state
+/.devenv*
+/.direnv/
+/devenv.local.nix
+/.buckconfig.devenv

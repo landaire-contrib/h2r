@@ -1,0 +1,58 @@
+load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
+load("@prelude//toolchains:cxx.bzl", "cxx_tools_info_toolchain")
+load("@prelude//toolchains:genrule.bzl", "system_genrule_toolchain")
+load("@prelude//toolchains:python.bzl", "system_python_bootstrap_toolchain")
+load("@prelude//toolchains:remote_test_execution.bzl", "remote_test_execution_toolchain")
+load(":host_toolchain.bzl", "host_linker_flags", "host_rust_toolchain", "host_tool", "host_tools")
+
+host_tools(
+    name = "host_tools",
+    visibility = ["PUBLIC"],
+)
+
+cxx_tools_info_toolchain(
+    name = "cxx",
+    cxx_tools_info = ":host_tools",
+    c_flags = select({
+        "DEFAULT": [],
+        "config//os:windows": ["/nologo"],
+    }),
+    cxx_flags = select({
+        "DEFAULT": [],
+        "config//os:windows": ["/nologo"],
+    }),
+    link_flags = select({
+        "DEFAULT": host_linker_flags(),
+        "config//os:windows": ["/INCREMENTAL:NO"],
+    }),
+    visibility = ["PUBLIC"],
+)
+
+host_rust_toolchain(
+    name = "rust",
+    default_edition = "2024",
+    tools = ":host_tools",
+    visibility = ["PUBLIC"],
+)
+
+system_genrule_toolchain(
+    name = "genrule",
+    visibility = ["PUBLIC"],
+)
+
+# The prelude's internal tools are Python scripts
+system_python_bootstrap_toolchain(
+    name = "python_bootstrap",
+    interpreter = host_tool("python"),
+    visibility = ["PUBLIC"],
+)
+
+noop_test_toolchain(
+    name = "test",
+    visibility = ["PUBLIC"],
+)
+
+remote_test_execution_toolchain(
+    name = "remote_test_execution",
+    visibility = ["PUBLIC"],
+)

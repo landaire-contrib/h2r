@@ -1,0 +1,7 @@
+buildscript.run = true
+# Files the crate includes with include_str!.
+extra_srcs = [
+    "src/changelog/*.md",
+    "src/platform_impl/linux/x11/tests/xsettings.dat",
+    "src/platform_impl/web/web_sys/worker.min.js",
+]

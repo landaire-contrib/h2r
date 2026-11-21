@@ -1,0 +1,4 @@
+# The build script probes pkg-config and test-links against the host libudev.
+buildscript.run = false
+cfgs = ["hwdb"]
+rustc_flags = ["-ludev"]

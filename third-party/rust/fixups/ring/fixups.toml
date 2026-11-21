@@ -1,0 +1,5 @@
+# build.rs checks the `links` key of the manifest against the version.
+[buildscript.run]
+env = { CARGO_MANIFEST_LINKS = "ring_core_0_17_14_" }
+rustc_link_lib = true
+rustc_link_search = true

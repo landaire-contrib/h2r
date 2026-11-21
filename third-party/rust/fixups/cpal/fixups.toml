@@ -1,0 +1,2 @@
+# Only enables ASIO when CPAL_ASIO_DIR is set.
+buildscript.run = false

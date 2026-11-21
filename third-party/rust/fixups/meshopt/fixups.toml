@@ -1,0 +1,4 @@
+# Compiles bundled C, C++ or assembly and links it.
+[buildscript.run]
+rustc_link_lib = true
+rustc_link_search = true

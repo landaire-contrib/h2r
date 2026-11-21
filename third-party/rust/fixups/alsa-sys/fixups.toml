@@ -1,0 +1,3 @@
+# The build script only probes pkg-config for libasound.
+buildscript.run = false
+rustc_flags = ["-lasound"]

@@ -1,0 +1,2 @@
+# The build script only sets a cfg for rustc older than 1.54.
+buildscript.run = false
