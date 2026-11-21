@@ -30,17 +30,6 @@ const SCOPES: [(UiScope, &Point, &Point, Option<&Point>); 6] = [
     (UiScope::Overlay, &OVERLAY_RECT_DRAW, &OVERLAY_RECT_RETURN, None),
 ];
 
-pub(crate) fn instruction_entries() -> impl Iterator<Item = u32> {
-    [
-        LAYERS_RETURN.base, ITEM_CALL.base, ITEM_RETURN.base, HUD_RETURN.base, HUD_HIDDEN_RETURN.base,
-        LOADING_RETURN.base, LOADING_EMPTY_RETURN.base, SCREEN_QUAD_READY.base, FADE_FAN_READY.base,
-        FADE_RETURN.base, OVERLAY_RECT_RETURN.base, LOADING_SPINNER_READY.base, LOADING_BITMAP_READY.base,
-        OUTLINE_VERTICES.base, OUTLINE_VERTICES_TAIL,
-    ].into_iter()
-        .chain(super::backdrop::instruction_entries())
-        .chain(super::model::instruction_entries())
-}
-
 const WIDGET_COUNT_FROM_EBP: u32 = 4;
 const WIDGET_LIST_FROM_EBP: u32 = 0xc0c;
 const WIDGET_ENTRY_BYTES: u32 = 0xc;

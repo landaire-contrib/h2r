@@ -17,15 +17,7 @@ use timeline::native::{Metric, Stage};
 
 pub const ID: &str = "native-transparents";
 
-// The contiguous-range branch of the standard geometry emitter, after
-// state commit. EDI holds the index array, ESI its count, BL its topology.
-pub(crate) const GEOMETRY_RANGE_READY: points::Point = points::Point::new(
-    "SCENE_GEOMETRY_RANGE_READY", 0x0004_dad0, points::Sig::Site, "docs/graphics/native-renderer.md",
-);
-// All exits from the sorted loop join here, before the guest view cleanup.
-pub(crate) const SCENE_TRANSPARENTS_END: points::Point = points::Point::new(
-    "SCENE_TRANSPARENTS_END", 0x0001_e406, points::Sig::Site, "docs/graphics/native-renderer.md",
-);
+use points::scene_effects::{GEOMETRY_RANGE_READY, SCENE_TRANSPARENTS_END};
 const GEOMETRY_RANGE_TAIL: u32 = 0x0004_dae0;
 const GEOMETRY_EMITTER_CALLER: u32 = 0x0004_d626;
 const TRANSPARENT_DRAW_CALLER: u32 = 0x0004_1010;

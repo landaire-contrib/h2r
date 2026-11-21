@@ -173,16 +173,6 @@ pub(crate) fn light_candidate_eligible(
     lights::candidate_eligible(m, record, definition, flags).ok()
 }
 
-pub(crate) fn instruction_entries() -> [u32; 5] {
-    [
-        points::OBJECT_RECORD_APPEND.base,
-        points::TRANSPARENT_GEOMETRY_ENTRY.base,
-        points::TRANSPARENT_GEOMETRY_QUEUED.base,
-        points::TRANSPARENT_ORDER_BEGIN.base,
-        points::TRANSPARENT_ORDER_READY.base,
-    ]
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Refusal {
     Memory,

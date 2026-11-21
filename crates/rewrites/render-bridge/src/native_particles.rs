@@ -20,51 +20,13 @@ pub const ID: &str = "native-particles";
 /// Refusal lines printed per kind before they go quiet.
 pub(crate) const LOG_LIMIT: u64 = 8;
 
-// After the allocator succeeds and the caller's preserved ESI/EDI have
-// been popped. ESP is still one word below the emitter's entry frame.
-pub const EMIT_READY: Point = Point::new(
-    "PARTICLE_EMIT_READY",
-    0x0023_ed5c,
-    Sig::Site,
-    "docs/graphics/native-particles.md",
-);
-
-// Publication boundaries, observed before the indicated instruction. These
-// keep every hook context-only: no Rust continuation around a guest body.
-pub const EMIT_PUBLISH: Point = Point::new(
-    "PARTICLE_PUBLISH",
-    0x0023_ef77,
-    Sig::Site,
-    "docs/graphics/native-particles.md",
-);
-pub const EMIT_END: Point = Point::new(
-    "PARTICLE_END",
-    0x0023_ef79,
-    Sig::Site,
-    "docs/graphics/native-particles.md",
-);
+pub use engine::points::scene_effects::{
+    EFFECT_END as DYNAMIC_END, EFFECT_PUBLISH as DYNAMIC_PUBLISH, EFFECT_QUAD_READY as DYNAMIC_QUAD_READY,
+    PARTICLE_EMIT_READY as EMIT_READY, PARTICLE_END as EMIT_END, PARTICLE_PUBLISH as EMIT_PUBLISH,
+};
 pub const DYNAMIC: Point = Point::new(
     "EFFECT_DYNAMIC",
     effect_geometry::DYNAMIC_DRAW,
-    Sig::Site,
-    "docs/graphics/native-particles.md",
-);
-// Shared with the UI rectangle hook. The planner keys points by identity.
-pub static DYNAMIC_QUAD_READY: Point = Point::new(
-    "EFFECT_QUAD_READY",
-    0x0004_b252,
-    Sig::Site,
-    "docs/graphics/native-particles.md",
-);
-pub const DYNAMIC_PUBLISH: Point = Point::new(
-    "EFFECT_PUBLISH",
-    0x0004_b28c,
-    Sig::Site,
-    "docs/graphics/native-particles.md",
-);
-pub const DYNAMIC_END: Point = Point::new(
-    "EFFECT_END",
-    0x0004_b2a3,
     Sig::Site,
     "docs/graphics/native-particles.md",
 );

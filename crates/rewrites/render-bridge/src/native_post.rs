@@ -20,10 +20,7 @@ use hooks::{BuildError, Builder, Feature, Flow, Manifest};
 
 pub const ID: &str = "native-post";
 
-/// The screen strip's BEGIN is published and its current row is known.
-pub(crate) const SCREEN_STRIP_READY: points::Point = points::Point::new(
-    "SCREEN_STRIP_READY", 0x0002_d565, points::Sig::Site, "docs/graphics/native-renderer.md",
-);
+use points::scene_effects::SCREEN_STRIP_READY;
 pub const SCREEN_STRIP_TAIL: u32 = 0x0002_d8b2;
 const SCREEN_FRAME_BYTES: u32 = 0xa8;
 

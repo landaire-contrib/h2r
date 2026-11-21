@@ -11,7 +11,7 @@ The guest side of the native renderer: the stage hooks, admissions, the pipeline
 - `src/lib.rs`: the install entry point.
 - `src/native_*.rs`, `src/native_*/`: one admission and hook set per stage (world, objects, lights, shadows, particles, HUD).
 - `src/pipeline_render.rs`, `src/pipeline_scene.rs`, `src/pipeline_snapshot.rs`: the pipelined render.
-- `src/scene_step.rs`, `src/scene_entries.rs`: the frame step's scene.
+- `src/scene_step.rs`: the frame step's scene.
 - `src/render_census.rs`, `src/entry_census.rs`, `src/render_timing.rs`: diagnostics.
 
 ## Features

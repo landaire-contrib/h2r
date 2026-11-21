@@ -55,12 +55,3 @@ fn ui_shares_the_loading_and_effect_points_with_other_features() {
     assert!(text.contains("native_ui_inline_rect"));
     assert!(text.contains("native_effects_walk_quad"));
 }
-
-#[test]
-fn scene_effect_instruction_entries_are_unique() {
-    let mut seen = std::collections::HashSet::new();
-    for address in render_bridge::scene_entries::scene_effect_instruction_entries() {
-        assert!(seen.insert(address), "duplicate entry {address:#010x}");
-    }
-    assert!(seen.contains(&render_bridge::native_particles::DYNAMIC_QUAD_READY.base));
-}

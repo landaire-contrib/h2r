@@ -6,7 +6,6 @@
 // Build and load: `crate::fallback`, `crate::tier`, `stamp_path` and the
 // rest are `recomp`'s.
 pub use recomp::*;
-pub use render_bridge::scene_entries::scene_effect_instruction_entries;
 pub use live_telemetry as telemetry;
 pub use live_hle::{HostPublisher, LiveConfig};
 pub use run_opts::{BetweenSlices, Host, RunOpts, RunReport, VfsReady};

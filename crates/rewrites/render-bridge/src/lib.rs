@@ -50,5 +50,4 @@ pub mod render_loop;
 pub mod render_timing;
 #[cfg(feature = "native-render")]
 pub mod scene_step;
-pub mod scene_entries;
 pub mod scope_zoom_hud;

@@ -72,7 +72,8 @@ fn main() {
     // The hook catalog changes lifted owner boundaries on both tiers.
     // Include the gate and inherited HUD return sites as well as the list.
     let entry_sources = ["src/render_entries.rs", "../../hooking/guest-layout/src/points.rs",
-        "../../hooking/guest-layout/src/points/render_aspect.rs"];
+        "../../hooking/guest-layout/src/points/render_aspect.rs",
+        "../../hooking/guest-layout/src/points/scene_effects.rs"];
     let generator = hash(
         &["../../formats/xbe/src", "../../recompiler/analyze/src", "../../recompiler/ir/src", "../../recompiler/lift/src", "../../recompiler/opt/src", "../../recompiler/emit/src", "../../recompiler/emit/c", "../../recompiler/x87/src", "../../runtime/runtime/include", "c"],
         &["rs", "c", "h"],

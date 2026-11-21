@@ -421,8 +421,11 @@ sides of the four orchestrators, `render_frame_and_present` and the per-light
 pass, and reports the front-end's guest time as the frame stats' `render`
 phase with an exclusive split per stage
 ([gameplay-budget.md](../perf/notes/gameplay-budget.md)).
-`scene_effect_instruction_entries` lists the retail instruction boundaries the
-emitter must route through entry dispatch for those stages.
+`guest_layout::points::scene_effects::instruction_entries` lists the retail
+instruction boundaries those stages hook mid-function. Discovery for both
+image tiers (`recomp::analyze_cached`, used by `h2 build`, `h2 emit` and the
+fast tier) makes each one an entry, whatever features the builder has, so
+a module built on one machine serves the native stages on another.
 
 ## State
 

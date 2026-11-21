@@ -41,10 +41,6 @@ thread_local! {
     static WIDGET: Cell<Option<Widget>> = const { Cell::new(None) };
 }
 
-pub(super) fn instruction_entries() -> impl Iterator<Item = u32> {
-    [MODEL_VIEW_CALL.base, MODEL_VIEW_RETURN.base, MODEL_GEOMETRY_CALL.base].into_iter()
-}
-
 pub(super) fn try_idle(c: &mut Call<'_>, mem: &dyn GuestMemory, stack: u32) -> Option<TransferAbi> {
     if ui_model::is_idle(mem, c.cpu.ecx) != Some(true) {
         return None;

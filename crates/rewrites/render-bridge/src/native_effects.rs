@@ -1,5 +1,6 @@
 //! Context-only observers for effect leaves. No handler or simulation skip.
 use crate::native_particles::{LOG_LIMIT, Producer, HOST};
+use engine::points::scene_effects::*;
 use engine::points::{Point, Sig};
 use native_render::effect_immediate::Site;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,42 +8,24 @@ use std::sync::atomic::{AtomicU64, Ordering};
 const DOC: &str = "docs/graphics/native-particles.md";
 static CALLS: [AtomicU64; 5] = [const { AtomicU64::new(0) }; 5];
 
-const fn points(site: Site) -> (Site, Point, Point) {
-    let (begin, end) = site.boundaries();
-    (
-        site,
-        Point::new("EFFECT_IMMEDIATE_BEGIN", begin, Sig::Site, DOC),
-        Point::new("EFFECT_IMMEDIATE_END", end, Sig::Site, DOC),
-    )
+const fn points(site: Site, leaf: EffectLeaf) -> (Site, Point, Point) {
+    (site, leaf.begin, leaf.end)
 }
 static BOUNDARIES: [(Site, Point, Point); 5] = [
-    points(Site::Billboard),
-    points(Site::DepthBillboard),
-    points(Site::WeatherLayer),
-    points(Site::WeatherParticles),
-    points(Site::MaterialStrip),
+    points(Site::Billboard, EFFECT_BILLBOARD),
+    points(Site::DepthBillboard, EFFECT_DEPTH_BILLBOARD),
+    points(Site::WeatherLayer, EFFECT_WEATHER_LAYER),
+    points(Site::WeatherParticles, EFFECT_WEATHER_PARTICLES),
+    points(Site::MaterialStrip, EFFECT_MATERIAL_STRIP),
 ];
 static REFUSALS: [(Point, &str); 3] = [
-    (
-        Point::new("EFFECT_QUERY", 0x0002_e9b6, Sig::Site, DOC),
-        "VisibilityQuery",
-    ),
-    (
-        Point::new("EFFECT_LAYERED_A", 0x0004_1cc0, Sig::Site, DOC),
-        "OtherLaneLayeredGeometry",
-    ),
-    (
-        Point::new("EFFECT_LAYERED_B", 0x0004_23c0, Sig::Site, DOC),
-        "OtherLaneLayeredGeometry",
-    ),
+    (EFFECT_QUERY, "VisibilityQuery"),
+    (EFFECT_LAYERED_A, "OtherLaneLayeredGeometry"),
+    (EFFECT_LAYERED_B, "OtherLaneLayeredGeometry"),
 ];
 static CALLBACK_QUEUE: Point = Point::new("EFFECT_CALLBACK_QUEUE", 0x0004_1490, Sig::Site, DOC);
 static CALLBACK_WRAPPER: Point =
     Point::new("EFFECT_CALLBACK_WRAPPER", 0x0004_8e40, Sig::Site, DOC);
-pub(crate) fn instruction_entries() -> impl Iterator<Item = u32> {
-    BOUNDARIES.iter().flat_map(|(_, begin, end)| [begin.base, end.base])
-        .chain(REFUSALS.iter().map(|(point, _)| point.base))
-}
 
 pub(crate) fn build(b: &mut hooks::Builder) {
     for (index, (site, start, end)) in BOUNDARIES.iter().enumerate() {

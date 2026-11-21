@@ -9,10 +9,6 @@ use hooks::{Builder, Call, Flow};
 
 use super::{host, ui};
 
-pub(super) fn instruction_entries() -> impl Iterator<Item = u32> {
-    [BACKDROP_WASH.base, BACKDROP_TINT.base, BACKDROP_COMPOSITE.base].into_iter()
-}
-
 #[derive(Clone, Copy)]
 enum Pass {
     Wash,

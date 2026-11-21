@@ -19,7 +19,6 @@ use hooks::{BuildError, Builder, Feature, Flow, Manifest};
 
 pub const ID: &str = "native-hud";
 
-pub(crate) use ui::instruction_entries;
 pub use outline::{PUSH_BYTES as OUTLINE_PUSH_BYTES, Vertices as OutlineVertices};
 pub use ui::UiScope;
 
@@ -28,9 +27,7 @@ pub fn on(switches: &hooks::Switches) -> bool {
     hooks::switches::native_render_on(switches)
 }
 
-pub(crate) const HUD_QUAD_READY: points::Point = points::Point::new(
-    "HUD_QUAD_READY", 0x0022_a7f6, points::Sig::Site, "docs/graphics/native-renderer.md",
-);
+use points::scene_effects::HUD_QUAD_READY;
 const HUD_QUAD_TAIL: u32 = 0x0022_a854;
 const HUD_QUAD_LOCAL_BYTES: u32 = 0x70;
 const HUD_QUAD_VERTEX_BYTES: u32 = 0x1c;
